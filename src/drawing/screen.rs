@@ -1,3 +1,5 @@
+use euclid::Size2D;
+
 use crate::aliases::*;
 use crate::formatting::FSem;
 use crate::geom::Grid;
@@ -20,6 +22,14 @@ impl Screen {
                 sem: SemanticContent::Blank,
             }
         )}
+    }
+
+    pub fn resize(&mut self, sz: CellSize) {
+        self.cells.resize(rect(0, 0, sz.width, sz.height), CellContent {
+            fg: 0,
+            bg: 0,
+            sem: SemanticContent::Blank,
+        })
     }
 }
 

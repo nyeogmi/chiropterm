@@ -4,6 +4,8 @@
 // and to remove some unnecessary helpers (ex: transpose(), square())
 use euclid::{Point2D, Rect, Size2D};
 
+use crate::geom::points_in::PointsIn;
+
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Grid<T, Space> {
     rect: Rect<isize, Space>,
@@ -20,6 +22,16 @@ where
 
         let capacity = rect.size.width as usize * rect.size.height as usize;
         Self { rect, data: vec![default; capacity] }
+    }
+
+    pub(crate) fn resize(&mut self, rect: Rect<isize, Space>, default: T) {
+        let mut grid2 = Grid::new(rect, default);
+        if let Some(inter) = rect.intersection(&self.rect) {
+            for xy in isize::points_in(inter) {
+                grid2.set(xy, *self.get(xy).unwrap())
+            }
+        }
+        *self = grid2;
     }
 }
 
