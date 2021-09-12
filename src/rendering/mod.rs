@@ -29,7 +29,18 @@ impl<'a> Render<'a> {
     }
 
     pub fn cell_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
-        /*
+        if xy.y < 0 {
+            self.fat_at(xy)
+        }
+        else if xy.y < 16 {
+            self.norm_at(Point2D::new(xy.x, xy.y - 0))
+        } 
+        else {
+            self.small_at(Point2D::new(xy.x, xy.y - 16))
+        }
+    }
+
+    pub fn norm_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
         let x = xy.x;
         let y = xy.y / 2;
         let is_top = xy.y % 2 == 0;
@@ -43,7 +54,8 @@ impl<'a> Render<'a> {
                 SemanticContent::BottomHalf(x + y * 16)
             }
         }
-        */
+    }
+    pub fn fat_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
         let x = xy.x / 2;
         let y = xy.y / 2;
         let is_left = xy.x % 2 == 0;
@@ -65,6 +77,16 @@ impl<'a> Render<'a> {
                     SemanticContent::FatBR(x + y * 16)
                 }
             }
+        }
+    }
+    pub fn small_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
+        let x = xy.x;
+        let y = xy.y;
+
+        CellContent { 
+            bg: 0x00000000,
+            fg: 0x00ffffff,
+            sem: SemanticContent::Small(x + y * 16) 
         }
     }
 }

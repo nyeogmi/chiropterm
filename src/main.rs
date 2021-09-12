@@ -1,6 +1,9 @@
 #![feature(type_alias_impl_trait)]
 extern crate minifb;
 
+#[macro_use] extern crate lazy_static;
+
+mod cp437;
 mod geom;
 mod rendering;
 mod spaces;

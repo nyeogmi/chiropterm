@@ -5,6 +5,8 @@ pub struct CellContent {
 }
 
 pub enum SemanticContent {
+    Small(u16), 
+
     TopHalf(u16),
     BottomHalf(u16),
 

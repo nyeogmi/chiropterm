@@ -110,6 +110,7 @@ name = "chiropterm"
 version = "0.1.0"
 dependencies = [
  "euclid",
+ "lazy_static",
  "minifb",
 ]
 
