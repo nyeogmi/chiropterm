@@ -48,11 +48,10 @@ impl IOCommands {
     fn reconstitute_window(&mut self) {
         let mut opts = WindowOptions::default();
         opts.scale = Scale::FitScreen;
-        // opts.scale_mode = ScaleMode::AspectRatioStretch;  // TODO: Don't stretch if the window is being upscaled, not downscaled
-        opts.scale_mode = ScaleMode::Stretch;  // TODO: Don't stretch if the window is being upscaled, not downscaled
+        opts.scale_mode = ScaleMode::Stretch;
         opts.resize = true;
 
-        let wsz = default_window_size(ASPECT_CONFIG, size2(640, 480));  // TODO: Get actual res
+        let wsz = default_window_size(ASPECT_CONFIG);  
 
         let mut window = Window::new(
             "TODO: Entitle this window",

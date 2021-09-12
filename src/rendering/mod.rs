@@ -2,7 +2,7 @@ mod cell;
 mod font;
 mod sprite;
 
-use euclid::{Point2D, Rect};
+use euclid::{Point2D};
 
 use crate::geom::PointsIn;
 
@@ -22,22 +22,9 @@ impl<'a> Render<'a> {
     pub fn draw(&mut self) {
         for term_xy in u16::points_in(self.aspect.term_rect()) {
             let content = self.cell_at(term_xy);
-            let sprite = font::eval(content.sem);
+            let tile = font::eval(content.sem);
 
-            let cell = self.aspect.buf_cell_area(term_xy);
-
-            let src = Rect::new(Point2D::zero(), cell.size);
-            let dest = cell;
-
-            for (s, d) in u16::points_in(src).zip(u16::points_in(dest)) {
-                let buffer_ix = d.y as usize * self.aspect.buf_size.width as usize + d.x as usize;
-
-                if sprite.pixel(s) {
-                    self.buffer[buffer_ix] = content.fg;
-                } else {
-                    self.buffer[buffer_ix] = content.bg;
-                }
-            }
+            tile.render(self.buffer, term_xy.x, term_xy.y, self.aspect.term_size.width, content.fg, content.bg);
         }
     }
 

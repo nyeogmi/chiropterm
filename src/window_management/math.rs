@@ -21,42 +21,10 @@ impl Aspect {
     pub fn term_rect(&self) -> Rect<u16, CellSpace> {
         Rect::new(Point2D::zero(), self.term_size)
     }
-
-    pub fn buf_cell_area(&self, cell_xy: Point2D<u16, CellSpace>) -> Rect<u16, PixelSpace> {
-        Rect::new(point2(self.cell_size.width * cell_xy.x, self.cell_size.height * cell_xy.y), self.cell_size)
-    }
 }
 
 
-pub fn default_window_size(aspect_config: AspectConfig, screen_size: Size2D<u16, PixelSpace>) -> Size2D<u16, PixelSpace> {
-    // if it's using "fit screen" scaling, just return the desired size
-    /*
-    let mut try_scaling_factor = 0;
-    let best_scaling_factor = loop {
-        try_scaling_factor += 1;
-
-        let cell_width = try_scaling_factor * aspect_config.cell_size.width;
-        let cell_height = try_scaling_factor * aspect_config.cell_size.height;
-
-        let term_width = screen_size.width / cell_width;
-        let term_height = screen_size.width / cell_height;
-        if term_width < aspect_config.pref_min_term_size.width || term_height < aspect_config.pref_min_term_size.height {
-            break try_scaling_factor;
-        }
-
-        if try_scaling_factor > 64 {
-            panic!("shouldn't need to go bigger than 64x")
-        }
-    };
-
-    // check this -- because if it were going to be 0, we would have hit the preferred downscale code
-    assert_ne!(0, best_scaling_factor);
-
-    return size2(
-        best_scaling_factor * aspect_config.cell_size.width * aspect_config.pref_min_term_size.width,
-        best_scaling_factor * aspect_config.cell_size.height * aspect_config.pref_min_term_size.height
-    )
-    */
+pub fn default_window_size(aspect_config: AspectConfig) -> Size2D<u16, PixelSpace> {
     let pref_min_buf_size = size2::<u16, PixelSpace>(
         aspect_config.pref_min_term_size.width * aspect_config.cell_size.width,
         aspect_config.pref_min_term_size.height * aspect_config.cell_size.height,
@@ -157,8 +125,8 @@ pub fn calculate_aspect(
         let cell_width = aspect_config.cell_size.width;
         let cell_height = aspect_config.cell_size.height;
 
-        let term_width = screen_size.width / cell_width;
-        let term_height = screen_size.height / cell_height;
+        let term_width = screen_size.width / (best_scaling_factor * cell_width);
+        let term_height = screen_size.height / (best_scaling_factor * cell_height);
 
         let pixel_width = term_width * cell_width;
         let pixel_height = term_height * cell_height;
