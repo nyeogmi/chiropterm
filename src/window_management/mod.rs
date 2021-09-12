@@ -3,7 +3,7 @@ mod math;
 use euclid::{size2};
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-use crate::rendering::Render;
+use crate::rendering::{Render, Swatch};
 
 use self::math::{AspectConfig, calculate_aspect, default_window_size};
 pub use self::math::Aspect;
@@ -23,6 +23,7 @@ pub struct IOCommands {
     frame: u64,
     window: Option<Window>,
     buffer: Vec<u32>,
+    swatch: Swatch,
 }
 
 pub struct IOCallbacks {
@@ -31,9 +32,9 @@ pub struct IOCallbacks {
 
 
 impl IO {
-    pub fn new(on_exit: impl 'static+FnMut(&mut IOCommands)) -> IO {
+    pub fn new(swatch: Swatch, on_exit: impl 'static+FnMut(&mut IOCommands)) -> IO {
         IO { 
-            commands: IOCommands { frame: 0, window: None, buffer: vec![] },
+            commands: IOCommands { frame: 0, window: None, buffer: vec![], swatch },
             callbacks: IOCallbacks { on_exit: Box::new(on_exit) },
         }
     }
@@ -110,6 +111,6 @@ impl IOCommands {
 
     fn draw(&mut self, aspect: Aspect) {
         self.frame += 1;
-        Render { aspect, frame: self.frame, buffer: &mut self.buffer }.draw()
+        Render { aspect, frame: self.frame, buffer: &mut self.buffer, swatch: self.swatch }.draw()
     }
 }

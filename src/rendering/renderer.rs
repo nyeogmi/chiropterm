@@ -5,12 +5,13 @@ use crate::geom::PointsIn;
 
 use crate::window_management::Aspect;
 
-use super::cell::{CellContent, SemanticContent};
+use super::{Swatch, cell::{CellContent, SemanticContent}};
 
 pub struct Render<'a> {
     pub frame: u64,
     pub aspect: Aspect,
     pub buffer: &'a mut Vec<u32>,
+    pub swatch: Swatch,
 }
 
 
@@ -20,7 +21,10 @@ impl<'a> Render<'a> {
             let content = self.cell_at(term_xy);
             let tile = super::font::eval(content.sem);
 
-            tile.render(self.buffer, term_xy.x, term_xy.y, self.aspect.term_size.width, content.fg, content.bg);
+            tile.render(
+                self.buffer, term_xy.x, term_xy.y, self.aspect.term_size.width, 
+                self.swatch.get(content.fg), self.swatch.get(content.bg)
+            );
         }
     }
 
@@ -42,8 +46,8 @@ impl<'a> Render<'a> {
         let is_top = xy.y % 2 == 0;
 
         CellContent {
-            bg: 0x00000000,
-            fg: 0x00ffffff,
+            bg: 0,
+            fg: 1,
             sem: if is_top {
                 SemanticContent::TopHalf(x + y * 16)
             } else {
@@ -58,8 +62,8 @@ impl<'a> Render<'a> {
         let is_top = xy.y % 2 == 0;
 
         CellContent {
-            bg: 0x00000000,
-            fg: 0x00ffffff,
+            bg: 0,
+            fg: 1,
             sem: if is_top {
                 if is_left {
                     SemanticContent::FatTL(x + y * 16)
@@ -80,8 +84,8 @@ impl<'a> Render<'a> {
         let y = xy.y;
 
         CellContent { 
-            bg: 0x00000000,
-            fg: 0x00ffffff,
+            bg: 0,
+            fg: 1,
             sem: SemanticContent::Small(x + y * 16) 
         }
     }

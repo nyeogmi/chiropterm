@@ -16,6 +16,6 @@ use std::process::exit;
 use window_management::IO;
 
 fn main() {
-    let mut io = IO::new(|_| exit(0));
+    let mut io = IO::new(*rendering::DEFAULT_SWATCH, |_| exit(0));
     io.wait()
 }

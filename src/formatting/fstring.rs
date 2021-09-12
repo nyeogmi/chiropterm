@@ -17,13 +17,21 @@ impl FChar {
             fg: self.fg.or(below.fg),
         }
     }
+
+    pub(crate) fn sem(&self, semantic: impl Fn(u16) -> SemanticContent) -> FSem {
+        FSem { 
+            sem: self.sprite.map(semantic),
+            bg: self.bg,
+            fg: self.fg,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
 pub struct FSem {
     pub sem: Option<SemanticContent>,
-    pub bg: Option<u32>,
-    pub fg: Option<u32>,
+    pub bg: Option<u8>,
+    pub fg: Option<u8>,
 }
 
 impl FSem {

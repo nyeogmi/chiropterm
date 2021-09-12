@@ -1,21 +1,24 @@
-use crate::{aliases::{CellPoint}, cp437, drawing::Stamp};
+use euclid::point2;
+
+use crate::{aliases::{CellPoint}, cp437, drawing::Stamp, rendering::Font};
 
 use super::{FChar, FString};
 
 pub struct Preformatter {
-    first_width: Option<usize>,
-    main_width: Option<usize>,
+    font: Font,
+    first_width_chars: Option<usize>,
+    main_width_chars: Option<usize>,
     justification: Justification,
 }
 
 impl Preformatter {
     fn width(&self, y: usize) -> Option<usize> {
-        if y == 0 { self.first_width }
-        else { self.main_width }
+        if y == 0 { self.first_width_chars }
+        else { self.main_width_chars }
     }
 
     fn leading(&self, y: usize) -> usize {
-        match (self.main_width, self.first_width) {
+        match (self.main_width_chars, self.first_width_chars) {
             (Some(main_width), Some(first_width)) => {
                 if y == 0 {
                     return 0
@@ -46,6 +49,8 @@ impl Preformatter {
     ) -> Stamp {
         let mut stamp = Stamp::new();
 
+        let char_size = self.font.char_size();
+
         let mut x: usize = 0;
         let mut y: usize = 0;
 
@@ -73,6 +78,11 @@ impl Preformatter {
                 for c in word.lhs..rhs {
                     // draw on stamp
                     // TODO: Depends on the font
+                    let cell_x = x as isize * char_size.width;
+                    let cell_y = y as isize * char_size.height;
+
+                    self.font.draw_char(point2(cell_x, cell_y), characters.0[c], &mut stamp);
+                    x += 1;
                     todo!(); 
                 }
             }
@@ -82,9 +92,9 @@ impl Preformatter {
         }
 
         stamp.cursor_point = Some(if forced_break {
-            CellPoint::new(0, y as isize)
+            CellPoint::new(0, y as isize * char_size.height)
         } else {
-            CellPoint::new(x as isize, (y - 1) as isize)
+            CellPoint::new(x as isize * char_size.width, (y - 1) as isize * char_size.height)
         });
 
         stamp
@@ -190,7 +200,7 @@ impl Preformatter {
         // corresponds to BreakWords1
         let mut f_words_2 = vec![];
         for mut word in f_words_1.into_iter() {
-            if let Some(w) = self.main_width {
+            if let Some(w) = self.main_width_chars {
                 while word.whitespace_lhs - word.lhs > w {
                     f_words_2.push(FWord {
                         lhs: word.lhs,

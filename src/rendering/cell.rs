@@ -1,7 +1,7 @@
 #[derive(Clone, Copy)]
 pub struct CellContent {
-    pub fg: u32,
-    pub bg: u32,
+    pub fg: u8,
+    pub bg: u8,
     pub sem: SemanticContent,
 }
 

@@ -1,4 +1,6 @@
-use crate::aliases::PixelSize;
+use euclid::size2;
+
+use crate::{aliases::*, drawing::Brushlike, formatting::FChar};
 
 use super::{cell::SemanticContent, sprite::{Tile, TileSet}};
 
@@ -20,6 +22,48 @@ const FONT_FAT: TileSet<'static> = TileSet {
     buf: BITMAP_FAT,
     overall_size: PixelSize::new(256, 256),
 };
+
+pub enum Font {
+    Normal,
+    Small,
+    Set,
+    Fat,
+}
+
+impl Font {
+    pub fn char_size(&self) -> CellSize {
+        match self {
+            Font::Normal => size2(1, 2),
+            Font::Small => size2(1, 1),
+            Font::Set => size2(2, 2),
+            Font::Fat => size2(2, 2),
+        }
+    }
+
+    pub(crate) fn draw_char(&self, at: CellPoint, f: FChar, stamp: &mut impl Brushlike) {
+        match self {
+            Font::Normal => {
+                stamp.draw(at + vec2(0, 0), f.sem(SemanticContent::TopHalf));
+                stamp.draw(at + vec2(0, 1), f.sem(SemanticContent::BottomHalf));
+            }
+            Font::Small => {
+                stamp.draw(at + vec2(0, 0), f.sem(SemanticContent::Small))
+            }
+            Font::Set => {
+                stamp.draw(at + vec2(0, 0), f.sem(SemanticContent::SetTL));
+                stamp.draw(at + vec2(0, 1), f.sem(SemanticContent::SetBL));
+                stamp.draw(at + vec2(1, 0), f.sem(SemanticContent::SetTR));
+                stamp.draw(at + vec2(1, 1), f.sem(SemanticContent::SetBR));
+            }
+            Font::Fat => {
+                stamp.draw(at + vec2(0, 0), f.sem(SemanticContent::FatTL));
+                stamp.draw(at + vec2(0, 1), f.sem(SemanticContent::FatBL));
+                stamp.draw(at + vec2(1, 0), f.sem(SemanticContent::FatTR));
+                stamp.draw(at + vec2(1, 1), f.sem(SemanticContent::FatBR));
+            }
+        }
+    }
+}
 
 pub fn eval(content: SemanticContent) -> Tile {
     match content {
