@@ -27,7 +27,7 @@ impl FChar {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct FSem {
     pub sem: Option<SemanticContent>,
     pub bg: Option<u8>,

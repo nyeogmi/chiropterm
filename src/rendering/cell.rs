@@ -1,11 +1,11 @@
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct CellContent {
     pub fg: u8,
     pub bg: u8,
     pub sem: SemanticContent,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum SemanticContent {
     Blank,
     Small(u16), 

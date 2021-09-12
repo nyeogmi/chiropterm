@@ -8,7 +8,7 @@ use crate::rendering::{CellContent, SemanticContent};
 use super::brush::Brushlike;
 
 pub struct Screen {
-    cells: Grid<CellContent, CellSpace>,
+    pub(crate) cells: Grid<CellContent, CellSpace>,  // pub(crate) so the renderer can access this directly
     // TODO: color
 }
 
@@ -17,7 +17,7 @@ impl Screen {
         Screen { cells: Grid::new(
             rect(0, 0, 0, 0), 
             CellContent {
-                fg: 0,
+                fg: 1,
                 bg: 0,
                 sem: SemanticContent::Blank,
             }
@@ -26,10 +26,14 @@ impl Screen {
 
     pub fn resize(&mut self, sz: CellSize) {
         self.cells.resize(rect(0, 0, sz.width, sz.height), CellContent {
-            fg: 0,
+            fg: 1,
             bg: 0,
             sem: SemanticContent::Blank,
         })
+    }
+
+    pub fn rect(&self) -> CellRect {
+        self.cells.rect()
     }
 }
 

@@ -3,7 +3,7 @@ mod math;
 use euclid::{size2};
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-use crate::rendering::{Render, Swatch};
+use crate::{drawing::Screen, rendering::{Render, Swatch}};
 
 use self::math::{AspectConfig, calculate_aspect, default_window_size};
 pub use self::math::Aspect;
@@ -16,36 +16,20 @@ const ASPECT_CONFIG: AspectConfig = AspectConfig {
 };
 
 pub struct IO {
-    commands: IOCommands,
-    callbacks: IOCallbacks,
-}
-pub struct IOCommands {
     frame: u64,
     window: Option<Window>,
     buffer: Vec<u32>,
     swatch: Swatch,
+    pub screen: Screen,  // TODO: Make private again later
 }
-
-pub struct IOCallbacks {
-    on_exit: Box<dyn FnMut(&mut IOCommands)>,
-}
-
 
 impl IO {
-    pub fn new(swatch: Swatch, on_exit: impl 'static+FnMut(&mut IOCommands)) -> IO {
+    pub fn new(swatch: Swatch) -> IO {
         IO { 
-            commands: IOCommands { frame: 0, window: None, buffer: vec![], swatch },
-            callbacks: IOCallbacks { on_exit: Box::new(on_exit) },
+            frame: 0, window: None, buffer: vec![], swatch, screen: Screen::new() 
         }
     }
 
-    pub fn wait(&mut self) {
-        // TODO: Termination condition
-        self.commands.wait(&mut self.callbacks)
-    }
-}
-
-impl IOCommands {
     fn reconstitute_window(&mut self) {
         let mut opts = WindowOptions::default();
         opts.scale = Scale::FitScreen;
@@ -82,7 +66,7 @@ impl IOCommands {
         aspect
     }
 
-    fn wait(&mut self, callbacks: &mut IOCallbacks) {
+    pub fn wait(&mut self, mut on_redraw: impl FnMut(&mut IO), mut on_exit: impl FnMut(&IO)) {
         // NYEO NOTE: What are we waiting for? 
         // Multiple fns that call this would be ideal
 
@@ -94,11 +78,13 @@ impl IOCommands {
             let win = self.window.as_mut().unwrap();
 
             if !win.is_open() {
-                (callbacks.on_exit)(self);
+                on_exit(self);
                 self.window = None;
                 continue;  // try again
             }
 
+            self.screen.resize(aspect.term_size.cast());
+            on_redraw(self);
             self.draw(aspect);
 
             let win = self.window.as_mut().unwrap();
@@ -111,6 +97,12 @@ impl IOCommands {
 
     fn draw(&mut self, aspect: Aspect) {
         self.frame += 1;
-        Render { aspect, frame: self.frame, buffer: &mut self.buffer, swatch: self.swatch }.draw()
+        Render { 
+            aspect, 
+            frame: self.frame, 
+            buffer: &mut self.buffer, 
+            swatch: self.swatch,
+            screen: &self.screen,
+        }.draw()
     }
 }

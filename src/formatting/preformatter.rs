@@ -5,10 +5,10 @@ use crate::{aliases::{CellPoint}, cp437, drawing::Stamp, rendering::Font};
 use super::{FChar, FString};
 
 pub struct Preformatter {
-    font: Font,
-    first_width_chars: Option<usize>,
-    main_width_chars: Option<usize>,
-    justification: Justification,
+    pub font: Font,
+    pub first_width_chars: Option<usize>,
+    pub main_width_chars: Option<usize>,
+    pub justification: Justification,
 }
 
 impl Preformatter {
@@ -24,7 +24,7 @@ impl Preformatter {
                     return 0
                 }
 
-                return first_width - main_width
+                return main_width - first_width
             },
             (_, _) => 0
         }
@@ -83,7 +83,6 @@ impl Preformatter {
 
                     self.font.draw_char(point2(cell_x, cell_y), characters.0[c], &mut stamp);
                     x += 1;
-                    todo!(); 
                 }
             }
 
@@ -131,7 +130,11 @@ impl Preformatter {
                 }
             }
 
-            lines.push(line)
+            lines.push(line);
+
+            if i >= words.len() {
+                break;
+            }
         }
 
         lines
@@ -284,7 +287,7 @@ struct FLine {
 }
 
 #[derive(Clone, Copy)]
-enum Justification {
+pub enum Justification {
     Left, Center, Right,
     // TODO: Justify?
 }

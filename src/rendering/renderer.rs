@@ -1,6 +1,6 @@
 use euclid::point2;
 
-use crate::aliases::CellPointU16;
+use crate::{aliases::CellPointU16, drawing::Screen};
 use crate::geom::PointsIn;
 
 use crate::window_management::Aspect;
@@ -12,13 +12,18 @@ pub struct Render<'a> {
     pub aspect: Aspect,
     pub buffer: &'a mut Vec<u32>,
     pub swatch: Swatch,
+    pub screen: &'a Screen,
 }
 
 
 impl<'a> Render<'a> {
     pub fn draw(&mut self) {
-        for term_xy in u16::points_in(self.aspect.term_rect()) {
-            let content = self.cell_at(term_xy);
+        let screen_rect = self.screen.rect();
+        let term_rect = self.aspect.term_rect();
+        assert_eq!(screen_rect, term_rect.cast());
+
+        for term_xy in u16::points_in(term_rect) {
+            let content = self.screen.cells.get(term_xy.cast()).unwrap();
             let tile = super::font::eval(content.sem);
 
             tile.render(
