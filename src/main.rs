@@ -3,10 +3,12 @@ extern crate minifb;
 
 #[macro_use] extern crate lazy_static;
 
+mod aliases;
 mod cp437;
+mod drawing;
+mod formatting;
 mod geom;
 mod rendering;
-mod spaces;
 mod window_management;
 
 use std::process::exit;

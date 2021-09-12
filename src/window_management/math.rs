@@ -1,6 +1,6 @@
 use euclid::*;
 
-use crate::spaces::{CellSpace, PixelSpace};
+use crate::aliases::{CellSpace, PixelSpace};
 
 pub struct AspectConfig {
     // TODO: Allow the user to have a preferred scaling factor and choose that if possible
