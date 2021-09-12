@@ -29,7 +29,7 @@ impl<'a> TileSet<'a> {
 }
 
 impl Tile {
-    #[inline(always)]
+    #[inline(always)]  // TODO: Is this an actual savings?
     pub(crate) fn render(&self, out_buf: &mut Vec<u32>, out_x: u16, out_y: u16, out_width: u16, fg: u32, bg: u32) {
         let real_out_x = out_x as usize * TILE_X as usize;
         let real_out_y = out_y as usize * TILE_Y as usize;
@@ -41,5 +41,70 @@ impl Tile {
                     if self.0[y as usize] & (1 << x) != 0 { fg } else { bg };
             }
         }
+    }
+
+    pub(crate) fn left(&self) -> Tile {
+        fn fix(row: u8) -> u8 { row << 4 }
+        Tile([
+            fix(self.0[0]), fix(self.0[1]), fix(self.0[2]), fix(self.0[3]),
+            fix(self.0[4]), fix(self.0[5]), fix(self.0[6]), fix(self.0[7]),
+        ])
+    }
+
+    pub(crate) fn right(&self) -> Tile {
+        fn fix(row: u8) -> u8 { row >> 4 }
+        Tile([
+            fix(self.0[0]), fix(self.0[1]), fix(self.0[2]), fix(self.0[3]),
+            fix(self.0[4]), fix(self.0[5]), fix(self.0[6]), fix(self.0[7]),
+        ])
+    }
+
+    pub(crate) fn fat_left(&self) -> Tile {
+        fn fix(row: u8) -> u8 { 
+            /* 
+            static const unsigned int B[] = {0x55, 0x33, 0x0F};
+            static const unsigned int S[] = {1, 2, 4};
+
+            unsigned int x; // Interleave lower 16 bits of x and y, so the bits of x
+            unsigned int y; // are in the even positions and bits from y in the odd;
+            unsigned int z; // z gets the resulting 32-bit Morton Number.  
+                            // x and y must initially be less than 65536.
+
+            x = (x | (x << S[2])) & B[2];
+            x = (x | (x << S[1])) & B[1];
+            x = (x | (x << S[0])) & B[0];
+
+            z = x | (x << 1);
+            */
+            // 12345678
+            // 1234
+            // 11223344
+            let x = row & 0x0f;  // 0x00001111
+            let x = (x | (x << 4)) & 0b00001111; 
+            let x = (x | (x << 2)) & 0b00110011; 
+            let x = (x | (x << 1)) & 0b01010101;
+            x | (x << 1)
+        }
+        Tile([
+            fix(self.0[0]), fix(self.0[1]), fix(self.0[2]), fix(self.0[3]),
+            fix(self.0[4]), fix(self.0[5]), fix(self.0[6]), fix(self.0[7]),
+        ])
+    }
+
+    pub(crate) fn fat_right(&self) -> Tile {
+        fn fix(row: u8) -> u8 { 
+            // 12345678
+            // 1234
+            // 11223344
+            let x = row >> 4;
+            let x = (x | (x << 4)) & 0b00001111; 
+            let x = (x | (x << 2)) & 0b00110011; 
+            let x = (x | (x << 1)) & 0b01010101;
+            x | (x << 1)
+        }
+        Tile([
+            fix(self.0[0]), fix(self.0[1]), fix(self.0[2]), fix(self.0[3]),
+            fix(self.0[4]), fix(self.0[5]), fix(self.0[6]), fix(self.0[7]),
+        ])
     }
 }

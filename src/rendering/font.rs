@@ -13,5 +13,15 @@ pub fn eval(content: SemanticContent) -> Tile {
     match content {
         SemanticContent::TopHalf(u) => { FONT.tile((u as usize) * 2) }
         SemanticContent::BottomHalf(u) => { FONT.tile((u as usize) * 2 + 1) }
+        
+        SemanticContent::SetTL(u) => { FONT.tile((u as usize) * 2).left() }
+        SemanticContent::SetTR(u) => { FONT.tile((u as usize) * 2).right() }
+        SemanticContent::SetBL(u) => { FONT.tile((u as usize) * 2 + 1).left() }
+        SemanticContent::SetBR(u) => { FONT.tile((u as usize) * 2 + 1).right() }
+
+        SemanticContent::FatTL(u) => { FONT.tile((u as usize) * 2).fat_left() }
+        SemanticContent::FatTR(u) => { FONT.tile((u as usize) * 2).fat_right() }
+        SemanticContent::FatBL(u) => { FONT.tile((u as usize) * 2 + 1).fat_left() }
+        SemanticContent::FatBR(u) => { FONT.tile((u as usize) * 2 + 1).fat_right() }
     }
 }

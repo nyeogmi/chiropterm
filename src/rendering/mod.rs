@@ -29,6 +29,7 @@ impl<'a> Render<'a> {
     }
 
     pub fn cell_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
+        /*
         let x = xy.x;
         let y = xy.y / 2;
         let is_top = xy.y % 2 == 0;
@@ -40,6 +41,29 @@ impl<'a> Render<'a> {
                 SemanticContent::TopHalf(x + y * 16)
             } else {
                 SemanticContent::BottomHalf(x + y * 16)
+            }
+        }
+        */
+        let x = xy.x / 2;
+        let y = xy.y / 2;
+        let is_left = xy.x % 2 == 0;
+        let is_top = xy.y % 2 == 0;
+
+        CellContent {
+            bg: 0x00000000,
+            fg: 0x00ffffff,
+            sem: if is_top {
+                if is_left {
+                    SemanticContent::SetTL(x + y * 16)
+                } else {
+                    SemanticContent::SetTR(x + y * 16)
+                }
+            } else {
+                if is_left {
+                    SemanticContent::SetBL(x + y * 16)
+                } else {
+                    SemanticContent::SetBR(x + y * 16)
+                }
             }
         }
     }
