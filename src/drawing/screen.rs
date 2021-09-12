@@ -1,4 +1,4 @@
-use crate::aliases::{AtCell, CellSpace};
+use crate::aliases::*;
 use crate::formatting::FSem;
 use crate::geom::Grid;
 use crate::rendering::{CellContent, SemanticContent};
@@ -12,12 +12,19 @@ pub struct Screen {
 
 impl Screen {
     pub fn new() -> Screen {
-        Screen { cells: Grid::new()}
+        Screen { cells: Grid::new(
+            rect(0, 0, 0, 0), 
+            CellContent {
+                fg: 0,
+                bg: 0,
+                sem: SemanticContent::Blank,
+            }
+        )}
     }
 }
 
 impl Brushlike for Screen {
-    fn draw(&mut self, at: AtCell, f: FSem) {
+    fn draw(&mut self, at: CellPoint, f: FSem) {
         if !self.cells.rect().contains(at) { return; }
 
         let c = self.cells.get_mut(at).unwrap();

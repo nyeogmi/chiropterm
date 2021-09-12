@@ -1,6 +1,7 @@
-use euclid::{Point2D};
+use euclid::point2;
 
-use crate::{aliases::CellSpace, geom::PointsIn};
+use crate::aliases::CellPointU16;
+use crate::geom::PointsIn;
 
 use crate::window_management::Aspect;
 
@@ -23,19 +24,19 @@ impl<'a> Render<'a> {
         }
     }
 
-    pub fn cell_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
+    pub fn cell_at(&self, xy: CellPointU16) -> CellContent {
         if xy.y < 2 {
             self.fat_at(xy)
         }
         else if xy.y < 16 {
-            self.norm_at(Point2D::new(xy.x, xy.y - 2))
+            self.norm_at(point2(xy.x, xy.y - 2))
         } 
         else {
-            self.small_at(Point2D::new(xy.x, xy.y - 16))
+            self.small_at(point2(xy.x, xy.y - 16))
         }
     }
 
-    pub fn norm_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
+    pub fn norm_at(&self, xy: CellPointU16) -> CellContent {
         let x = xy.x;
         let y = xy.y / 2;
         let is_top = xy.y % 2 == 0;
@@ -50,7 +51,7 @@ impl<'a> Render<'a> {
             }
         }
     }
-    pub fn fat_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
+    pub fn fat_at(&self, xy: CellPointU16) -> CellContent {
         let x = xy.x / 2;
         let y = xy.y / 2;
         let is_left = xy.x % 2 == 0;
@@ -74,7 +75,7 @@ impl<'a> Render<'a> {
             }
         }
     }
-    pub fn small_at(&self, xy: Point2D<u16, CellSpace>) -> CellContent {
+    pub fn small_at(&self, xy: CellPointU16) -> CellContent {
         let x = xy.x;
         let y = xy.y;
 

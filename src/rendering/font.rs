@@ -1,4 +1,4 @@
-use euclid::{Size2D};
+use crate::aliases::PixelSize;
 
 use super::{cell::SemanticContent, sprite::{Tile, TileSet}};
 
@@ -8,21 +8,22 @@ const BITMAP_FAT: &'static [u8; 0x2000] = include_bytes!("font_fat.bin");
 
 const FONT: TileSet<'static> = TileSet {
     buf: BITMAP,
-    overall_size: Size2D::new(256, 128),
+    overall_size: PixelSize::new(256, 128),
 };
 
 const FONT_SMALL: TileSet<'static> = TileSet {
     buf: BITMAP_SMALL,
-    overall_size: Size2D::new(128, 128),
+    overall_size: PixelSize::new(128, 128),
 };
 
 const FONT_FAT: TileSet<'static> = TileSet {
     buf: BITMAP_FAT,
-    overall_size: Size2D::new(256, 256),
+    overall_size: PixelSize::new(256, 256),
 };
 
 pub fn eval(content: SemanticContent) -> Tile {
     match content {
+        SemanticContent::Blank => { Tile([0; 8]) }
         SemanticContent::TopHalf(u) => { FONT.tile((u as usize) * 2) }
         SemanticContent::BottomHalf(u) => { FONT.tile((u as usize) * 2 + 1) }
 

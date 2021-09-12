@@ -1,6 +1,6 @@
-use crate::{aliases::{AtCell, AtCellI}, formatting::{FChar, FSem}};
+use crate::{aliases::CellPoint, formatting::FSem};
 
 
 pub trait Brushlike {
-    fn draw(&mut self, at: AtCellI, f: FSem);
+    fn draw(&mut self, at: CellPoint, f: FSem);
 }

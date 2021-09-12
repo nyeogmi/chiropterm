@@ -1,4 +1,4 @@
-use crate::{aliases::{AtCellI}, cp437, drawing::Stamp};
+use crate::{aliases::{CellPoint}, cp437, drawing::Stamp};
 
 use super::{FChar, FString};
 
@@ -32,8 +32,8 @@ impl Preformatter {
     }
 
     pub fn to_stamp_fstring(&self, fs: &FString) -> Stamp {
-        let words = self.break_words(fs);
-        let lines = self.break_lines(words);
+        let words = self.break_words(&fs);
+        let lines = self.break_lines(&words);
         let stamp = self.to_stamp_internal(&lines, &words, fs);
         stamp
     }
@@ -47,10 +47,10 @@ impl Preformatter {
         let mut stamp = Stamp::new();
 
         let mut x: usize = 0;
-        let mut y: usize;
+        let mut y: usize = 0;
 
         let mut forced_break: bool = false;
-        for y in 0..lines.len() {
+        while y < lines.len() {
             let line = &lines[y];
             x = 
                 self.leading(y) +
@@ -78,23 +78,24 @@ impl Preformatter {
             }
 
             forced_break = line.forced_break;
+            y += 1; 
         }
 
         stamp.cursor_point = Some(if forced_break {
-            AtCellI::new(0, y as isize)
+            CellPoint::new(0, y as isize)
         } else {
-            AtCellI::new(x as isize, (y - 1) as isize)
+            CellPoint::new(x as isize, (y - 1) as isize)
         });
 
         stamp
     }
 
-    fn break_lines(&self, words: Vec<FWord>) -> Vec<FLine> {
-        let lines: Vec<FLine> = Vec::new();
+    fn break_lines(&self, words: &[FWord]) -> Vec<FLine> {
+        let mut lines: Vec<FLine> = Vec::new();
         let mut i = 0;
 
         for y in 0.. {
-            let line = FLine { lhs: i, rhs: i, width: 0, forced_break: false};
+            let mut line = FLine { lhs: i, rhs: i, width: 0, forced_break: false};
             let mut additional = 0;
 
             while i < words.len() {
@@ -119,6 +120,8 @@ impl Preformatter {
                     break;
                 }
             }
+
+            lines.push(line)
         }
 
         lines
@@ -126,7 +129,7 @@ impl Preformatter {
 
     fn break_words(&self, fs: &FString) -> Vec<FWord> {
         let mut i = 0;
-        let f_words_1: Vec<FWord> = Vec::new();
+        let mut f_words_1: Vec<FWord> = Vec::new();
 
         // == corresponds to BreakWords2 ==
         loop {
@@ -185,7 +188,7 @@ impl Preformatter {
         }
 
         // corresponds to BreakWords1
-        let f_words_2 = vec![];
+        let mut f_words_2 = vec![];
         for mut word in f_words_1.into_iter() {
             if let Some(w) = self.main_width {
                 while word.whitespace_lhs - word.lhs > w {
@@ -203,8 +206,8 @@ impl Preformatter {
         }
 
         // corresponds to last-ditch filtering in BreakWords
-        let f_words_3 = vec![];
-        for mut word in f_words_2.into_iter() {
+        let mut f_words_3 = vec![];
+        for word in f_words_2.into_iter() {
             if word.word_rhs != word.lhs || word.force_break {
                 f_words_3.push(word);
             }
@@ -214,11 +217,11 @@ impl Preformatter {
     }
 
     pub fn to_fstring(&self, s: &str) -> FString {
-        let bg: Option<u8> = None;
-        let fg: Option<u8> = None;
+        let mut bg: Option<u8> = None;
+        let mut fg: Option<u8> = None;
 
-        let fs: Vec<FChar> = Vec::new();
-        let iter = s.chars();
+        let mut fs: Vec<FChar> = Vec::new();
+        let mut iter = s.chars();
         loop {
             let c = match iter.next() {
                 Some(c) => c,
@@ -254,6 +257,7 @@ impl Preformatter {
     }
 }
 
+#[derive(Clone, Copy)]
 struct FWord {
     lhs: usize,
     whitespace_lhs: usize,
@@ -261,6 +265,7 @@ struct FWord {
     force_break: bool,
 }
 
+#[derive(Clone, Copy)]
 struct FLine {
     lhs: usize,
     rhs: usize,
@@ -268,6 +273,7 @@ struct FLine {
     forced_break: bool,
 }
 
+#[derive(Clone, Copy)]
 enum Justification {
     Left, Center, Right,
     // TODO: Justify?

@@ -1,19 +1,17 @@
 use std::convert::TryInto;
 
-use euclid::Size2D;
-
-use crate::aliases::PixelSpace;
+use crate::aliases::{PixelSize};
 
 pub struct TileSet<'a> {
     pub buf: &'a [u8],
-    pub overall_size: Size2D<u16, PixelSpace>,
+    pub overall_size: PixelSize,
 }
 
 const TILE_X: u16 = 8;
 const TILE_Y: u16 = 8;
 
 #[derive(Clone, Copy)]
-pub struct Tile([u8; 8]);
+pub struct Tile(pub [u8; 8]);
 
 impl<'a> TileSet<'a> {
     pub fn tile(&self, ix: usize) -> Tile {

@@ -1,22 +1,18 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
-use euclid::{Point2D, Rect, point2};
-
-use crate::{aliases::{AtCell, AtCellI, CellSpace}, cp437, formatting::{FChar, FSem}};
+use crate::{aliases::*, formatting::FSem};
 
 use super::brush::Brushlike;
 
-use crate::geom::PointsIn;
-
 pub struct Stamp {
     content: BTreeMap<(isize, isize), FSem>,
-    pub cursor_point: Option<AtCellI>,
-    bounds: Option<Rect<isize, CellSpace>>,
+    pub cursor_point: Option<CellPoint>,
+    bounds: Option<CellRect>,
 }
 
 impl Stamp {
     pub fn new() -> Stamp {
-        let cursor_point: Option<AtCellI> = None;
+        let cursor_point: Option<CellPoint> = None;
         Stamp { 
             content: BTreeMap::new(), 
             cursor_point: cursor_point, 
@@ -24,9 +20,9 @@ impl Stamp {
         }
     }
 
-    pub fn iter(&self) -> impl '_+DoubleEndedIterator<Item=(AtCellI, FSem)> {
+    pub fn iter(&self) -> impl '_+DoubleEndedIterator<Item=(CellPoint, FSem)> {
         self.content.iter().map(|(k, v)| 
-            (AtCellI::new(k.0, k.1), *v)
+            (CellPoint::new(k.0, k.1), *v)
         )
     }
 
@@ -64,9 +60,9 @@ impl Stamp {
 }
 
 impl Brushlike for Stamp {
-    fn draw(&mut self, at: AtCellI, f: FSem) {
+    fn draw(&mut self, at: CellPoint, f: FSem) {
         match self.content.entry((at.x, at.y)) {
-            Entry::Occupied(o) => { 
+            Entry::Occupied(mut o) => { 
                 let new = f.superimposed_on(*o.get());
                 o.insert(new);
             }

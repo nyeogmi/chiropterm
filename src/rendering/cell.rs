@@ -7,6 +7,7 @@ pub struct CellContent {
 
 #[derive(Clone, Copy)]
 pub enum SemanticContent {
+    Blank,
     Small(u16), 
 
     TopHalf(u16),

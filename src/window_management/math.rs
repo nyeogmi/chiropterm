@@ -1,47 +1,46 @@
 use euclid::*;
 
-use crate::aliases::{CellSpace, PixelSpace};
+use crate::aliases::*;
 
 pub struct AspectConfig {
     // TODO: Allow the user to have a preferred scaling factor and choose that if possible
 
-    pub pref_min_term_size: Size2D<u16, CellSpace>,
-    pub pref_max_term_size: Size2D<u16, CellSpace>,
-    pub cell_size: Size2D<u16, PixelSpace>,
+    pub pref_min_term_size: CellSizeU16,
+    pub pref_max_term_size: CellSizeU16,
+    pub cell_size: PixelSize,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Aspect {
-    pub buf_size: Size2D<u16, PixelSpace>,
-    pub term_size: Size2D<u16, CellSpace>,
-    pub cell_size: Size2D<u16, PixelSpace>,
+    pub buf_size: PixelSize,
+    pub term_size: CellSizeU16,
+    pub cell_size: PixelSize,
 }
 
 impl Aspect {
-    pub fn term_rect(&self) -> Rect<u16, CellSpace> {
-        Rect::new(Point2D::zero(), self.term_size)
+    pub fn term_rect(&self) -> CellRectU16 {
+        Rect::new(CellPointU16::zero(), self.term_size)
     }
 }
 
 
-pub fn default_window_size(aspect_config: AspectConfig) -> Size2D<u16, PixelSpace> {
-    let pref_min_buf_size = size2::<u16, PixelSpace>(
+pub fn default_window_size(aspect_config: AspectConfig) -> PixelSize {
+    size2(
         aspect_config.pref_min_term_size.width * aspect_config.cell_size.width,
         aspect_config.pref_min_term_size.height * aspect_config.cell_size.height,
-    );
-    pref_min_buf_size
+    )
 }
 
 pub fn calculate_aspect(
     aspect_config: AspectConfig,
-    screen_size: Size2D<u16, PixelSpace>
+    screen_size: PixelSize,
 ) -> Aspect {
     // step 1: if the screen size is 0 in either dimension, give up
     if screen_size.width == 0 || screen_size.height == 0 {
         return Aspect {
-            buf_size: Size2D::zero(),
-            term_size: Size2D::zero(),
-            cell_size: Size2D::zero(),
+            buf_size: PixelSize::zero(),
+            term_size: CellSizeU16::zero(),
+            cell_size: PixelSize::zero(),
         }
     }
 
@@ -61,11 +60,11 @@ pub fn calculate_aspect(
 
     if min_downscale < 1.0 {
         // just generate it by downscaling onto the screen
-        let buf_size_f32: Size2D<f32, PixelSpace> = size2(
+        let buf_size_f32: PixelSizeF32 = size2(
             screen_size.width as f32 / min_downscale,
             screen_size.height as f32 / min_downscale,
         );
-        let term_size_f32: Size2D<f32, CellSpace> = size2(
+        let term_size_f32: CellSizeF32 = size2(
             buf_size_f32.width / aspect_config.cell_size.width as f32,
             buf_size_f32.height / aspect_config.cell_size.height as f32,
         );
@@ -80,7 +79,7 @@ pub fn calculate_aspect(
 
         let term_size = term_size.cast::<u16>();
 
-        let buf_size: Size2D<u16, PixelSpace> = size2(
+        let buf_size: PixelSize = size2(
             term_size.width * aspect_config.cell_size.width,
             term_size.height * aspect_config.cell_size.height,
         );

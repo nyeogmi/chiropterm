@@ -1,10 +1,12 @@
 // vendored from `gridd` package
 // rewritten to use euclid types
-use euclid::{Point2D, Rect, Size2D, point2, size2};
+// and rewritten to have a customizable rectangle boundary
+// and to remove some unnecessary helpers (ex: transpose(), square())
+use euclid::{Point2D, Rect, Size2D};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Grid<T, Space> {
-    size: Size2D<usize, Space>,
+    rect: Rect<isize, Space>,
     data: Vec<T>,
 }
 
@@ -12,52 +14,38 @@ impl<T, Space> Grid<T, Space>
 where
     T: Copy,
 {
-    pub fn new(size: Size2D<usize, Space>, default: T) -> Self {
-        let capacity = size.width * size.height;
+    pub fn new(rect: Rect<isize, Space>, default: T) -> Self {
+        assert!(rect.size.width >= 0);
+        assert!(rect.size.height >= 0);
 
-        Self { size, data: vec![default; capacity] }
-    }
-
-    pub fn square(side_len: usize, default: T) -> Self {
-        Self::new(Size2D::new(side_len, side_len), default)
-    }
-
-    pub fn transpose(&self) -> Self {
-        if let Some(&val) = self.get(point2(0, 0)) {
-            let mut new_grid = Self::new(Size2D::new(self.size.height, self.size.width), val);
-
-            for src_row in 0..self.size.width {
-                for src_col in 0..self.size.height {
-                    if let Some(&val) = self.get(point2(src_col, src_row)) {
-                        new_grid.set(point2(src_row, src_col), val)
-                    }
-                }
-            }
-
-            new_grid
-        } else {
-            Self {
-                size: size2(0, 0),
-                data: Vec::new(),
-            }
-        }
+        let capacity = rect.size.width as usize * rect.size.height as usize;
+        Self { rect, data: vec![default; capacity] }
     }
 }
 
 impl<T, Space> Grid<T, Space> {
-    fn flat_index(&self, p: Point2D<usize, Space>) -> usize {
-        p.x + self.size.width * p.y
+    pub fn contains(&self, p: Point2D<isize, Space>) -> bool {
+        self.rect.contains(p)
     }
 
-    pub fn rect(&self) -> Rect<usize, Space> {
-        Rect::new(Point2D::zero(), self.size())
+    fn flat_index(&self, p: Point2D<isize, Space>) -> usize {
+        assert!(self.rect.contains(p));
+
+        let w = self.rect.size.width as usize;
+        let y = (p.y - self.rect.origin.y) as usize;
+        let x = (p.x - self.rect.origin.x) as usize;
+        w * y + x
     }
 
-    pub fn size(&self) -> Size2D<usize, Space> {
-        self.size()
+    pub fn rect(&self) -> Rect<isize, Space> {
+        self.rect
     }
 
-    pub fn get(&self, p: Point2D<usize, Space>) -> Option<&T> {
+    pub fn size(&self) -> Size2D<isize, Space> {
+        self.rect.size
+    }
+
+    pub fn get(&self, p: Point2D<isize, Space>) -> Option<&T> {
         if self.contains(p) {
             let index = self.flat_index(p);
 
@@ -67,7 +55,7 @@ impl<T, Space> Grid<T, Space> {
         }
     }
 
-    pub fn get_mut(&mut self, p: Point2D<usize, Space>) -> Option<&mut T> {
+    pub fn get_mut(&mut self, p: Point2D<isize, Space>) -> Option<&mut T> {
         if self.contains(p) {
             let index = self.flat_index(p);
 
@@ -77,17 +65,12 @@ impl<T, Space> Grid<T, Space> {
         }
     }
 
-    pub fn set(&mut self, p: Point2D<usize, Space>, new_val: T) {
+    pub fn set(&mut self, p: Point2D<isize, Space>, new_val: T) {
         match self.get_mut(p) {
             Some(val) => {
                 *val = new_val;
             }
             None => (),
         }
-    }
-
-    /// Determine if a coordinate is within the grid
-    pub fn contains(&self, p: Point2D<usize, Space>) -> bool {
-        p.x < self.size.width && p.y < self.size.height
     }
 }
