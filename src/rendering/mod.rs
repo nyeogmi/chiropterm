@@ -54,15 +54,15 @@ impl<'a> Render<'a> {
             fg: 0x00ffffff,
             sem: if is_top {
                 if is_left {
-                    SemanticContent::SetTL(x + y * 16)
+                    SemanticContent::FatTL(x + y * 16)
                 } else {
-                    SemanticContent::SetTR(x + y * 16)
+                    SemanticContent::FatTR(x + y * 16)
                 }
             } else {
                 if is_left {
-                    SemanticContent::SetBL(x + y * 16)
+                    SemanticContent::FatBL(x + y * 16)
                 } else {
-                    SemanticContent::SetBR(x + y * 16)
+                    SemanticContent::FatBR(x + y * 16)
                 }
             }
         }

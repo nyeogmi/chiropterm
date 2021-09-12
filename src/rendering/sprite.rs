@@ -83,7 +83,8 @@ impl Tile {
             let x = (x | (x << 4)) & 0b00001111; 
             let x = (x | (x << 2)) & 0b00110011; 
             let x = (x | (x << 1)) & 0b01010101;
-            x | (x << 1)
+            let pre = x | (x << 1);
+            ((pre & 0b00000111) << 1) | (pre & 0b11110000)
         }
         Tile([
             fix(self.0[0]), fix(self.0[1]), fix(self.0[2]), fix(self.0[3]),
@@ -100,7 +101,8 @@ impl Tile {
             let x = (x | (x << 4)) & 0b00001111; 
             let x = (x | (x << 2)) & 0b00110011; 
             let x = (x | (x << 1)) & 0b01010101;
-            x | (x << 1)
+            let pre = x | (x << 1);
+            ((pre & 0b11100000) >> 1) | (pre & 0b00001111)
         }
         Tile([
             fix(self.0[0]), fix(self.0[1]), fix(self.0[2]), fix(self.0[3]),
