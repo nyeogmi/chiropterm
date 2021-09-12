@@ -3,9 +3,10 @@ mod math;
 use euclid::{size2};
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-use self::math::{Aspect, AspectConfig, calculate_aspect, default_window_size};
+use crate::rendering::Render;
 
-use crate::geom::PointsIn;
+use self::math::{AspectConfig, calculate_aspect, default_window_size};
+pub use self::math::Aspect;
 
 // TODO: Is a cell 2 characters across
 const ASPECT_CONFIG: AspectConfig = AspectConfig {
@@ -47,7 +48,8 @@ impl IOCommands {
     fn reconstitute_window(&mut self) {
         let mut opts = WindowOptions::default();
         opts.scale = Scale::FitScreen;
-        opts.scale_mode = ScaleMode::AspectRatioStretch;
+        // opts.scale_mode = ScaleMode::AspectRatioStretch;  // TODO: Don't stretch if the window is being upscaled, not downscaled
+        opts.scale_mode = ScaleMode::Stretch;  // TODO: Don't stretch if the window is being upscaled, not downscaled
         opts.resize = true;
 
         let wsz = default_window_size(ASPECT_CONFIG, size2(640, 480));  // TODO: Get actual res
@@ -109,33 +111,6 @@ impl IOCommands {
 
     fn draw(&mut self, aspect: Aspect) {
         self.frame += 1;
-
-        for term_xy in u16::points_in(aspect.term_rect()) {
-            let cell = aspect.buf_cell_area(term_xy);
-            for pixel_xy in u16::points_in(cell) {
-                let r = (term_xy.x * 11) as u64 + self.frame;
-                let g = (term_xy.y * 7) as u64 + self.frame;
-                let b = 0;
-
-                let buffer_ix = pixel_xy.y as usize * aspect.buf_size.width as usize + pixel_xy.x as usize;
-                self.buffer[buffer_ix] = 
-                    ((r & 0xff) as u32) << 16 |
-                    ((g & 0xff) as u32) << 8 |
-                    (b & 0xff) as u32 
-                ;
-
-            }
-        }
-
-        /*
-        let mut x = ((self.frame * 4) & 0xffffffff) as u32;
-        // draw!
-        for (ix, i) in self.buffer.iter_mut().enumerate() {
-            if ix % 32768 == 0 {
-                x = ((x as u64 + (0x100000000 - 0x0007050b)) & 0xffffffff) as u32;
-            }
-            *i = x; // write something more funny here!
-        }
-        */
+        Render { aspect, frame: self.frame, buffer: &mut self.buffer }.draw()
     }
 }

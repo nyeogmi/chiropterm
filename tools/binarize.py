@@ -25,4 +25,4 @@ def reencode(src, dst):
 
 
 if __name__ == "__main__":
-    reencode("srcfiles/font.png", "binfiles/font.bin")
+    reencode("srcfiles/font.png", "../src/rendering/font.bin")

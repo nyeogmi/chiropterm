@@ -2,6 +2,7 @@
 extern crate minifb;
 
 mod geom;
+mod rendering;
 mod spaces;
 mod window_management;
 
