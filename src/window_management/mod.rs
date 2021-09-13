@@ -26,7 +26,7 @@ pub struct IO {
 impl IO {
     pub fn new(swatch: Swatch) -> IO {
         IO { 
-            frame: 0, window: None, buffer: vec![], swatch, screen: Screen::new() 
+            frame: 0, window: None, buffer: vec![], swatch, screen: Screen::new(swatch.default_bg, swatch.default_fg) 
         }
     }
 

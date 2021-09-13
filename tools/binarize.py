@@ -8,7 +8,7 @@ def reencode_swatch(src, dst):
         for y in range(im.height):
             for x in range(im.width):
                 pix = im.getpixel((x, y))
-                r, g, b = pix
+                r, g, b, a = pix
                 bytes_list.append(r)
                 bytes_list.append(g)
                 bytes_list.append(b)

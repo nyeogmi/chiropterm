@@ -2,7 +2,9 @@ use std::convert::TryInto;
 
 #[derive(Clone, Copy)]
 pub struct Swatch {
-    pub colors: [u32; 0x100]
+    pub colors: [u32; 0x100],
+    pub default_bg: u8,
+    pub default_fg: u8,
 }
 
 impl Swatch {
@@ -24,7 +26,9 @@ lazy_static! {
             );
         }
         Swatch {
-            colors: (&full_colors[..]).try_into().unwrap()
+            colors: (&full_colors[..]).try_into().unwrap(),
+            default_bg: 11,
+            default_fg: 0,
         }
     };
 }

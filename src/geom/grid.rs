@@ -1,3 +1,5 @@
+use std::mem;
+
 // vendored from `gridd` package
 // rewritten to use euclid types
 // and rewritten to have a customizable rectangle boundary
@@ -12,30 +14,29 @@ pub struct Grid<T, Space> {
     data: Vec<T>,
 }
 
-impl<T, Space> Grid<T, Space>
-where
-    T: Copy,
-{
-    pub fn new(rect: Rect<isize, Space>, default: T) -> Self {
+impl<T, Space> Grid<T, Space> {
+    pub fn new(rect: Rect<isize, Space>, default: impl Fn() -> T) -> Self {
         assert!(rect.size.width >= 0);
         assert!(rect.size.height >= 0);
 
         let capacity = rect.size.width as usize * rect.size.height as usize;
-        Self { rect, data: vec![default; capacity] }
+        let mut data = Vec::with_capacity(capacity);
+        for _ in 0..capacity { 
+            data.push(default()) 
+        }
+        Self { rect, data }
     }
 
-    pub(crate) fn resize(&mut self, rect: Rect<isize, Space>, default: T) {
+    pub(crate) fn resize(&mut self, rect: Rect<isize, Space>, default: impl Fn() -> T) {
         let mut grid2 = Grid::new(rect, default);
         if let Some(inter) = rect.intersection(&self.rect) {
             for xy in isize::points_in(inter) {
-                grid2.set(xy, *self.get(xy).unwrap())
+                mem::swap(grid2.get_mut(xy).unwrap(), self.get_mut(xy).unwrap())
             }
         }
         *self = grid2;
     }
-}
 
-impl<T, Space> Grid<T, Space> {
     pub fn contains(&self, p: Point2D<isize, Space>) -> bool {
         self.rect.contains(p)
     }

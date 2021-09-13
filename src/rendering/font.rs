@@ -1,6 +1,6 @@
 use euclid::size2;
 
-use crate::{aliases::*, drawing::Brushlike, formatting::FChar};
+use crate::{aliases::*, drawing::Brushable, formatting::FChar};
 
 use super::{cell::SemanticContent, sprite::{Tile, TileSet}};
 
@@ -23,6 +23,7 @@ const FONT_FAT: TileSet<'static> = TileSet {
     overall_size: PixelSize::new(256, 256),
 };
 
+#[derive(Clone, Copy)]
 pub enum Font {
     Normal,
     Small,
@@ -40,7 +41,7 @@ impl Font {
         }
     }
 
-    pub(crate) fn draw_char(&self, at: CellPoint, f: FChar, stamp: &mut impl Brushlike) {
+    pub(crate) fn draw_char(&self, at: CellPoint, f: FChar, stamp: &mut impl Brushable) {
         match self {
             Font::Normal => {
                 stamp.draw(at + vec2(0, 0), f.sem(SemanticContent::TopHalf));

@@ -1,35 +1,37 @@
-use euclid::Size2D;
+use std::cell::Cell;
 
 use crate::aliases::*;
 use crate::formatting::FSem;
 use crate::geom::Grid;
 use crate::rendering::{CellContent, SemanticContent};
 
-use super::brush::Brushlike;
+use super::brush::Brushable;
 
 pub struct Screen {
-    pub(crate) cells: Grid<CellContent, CellSpace>,  // pub(crate) so the renderer can access this directly
-    // TODO: color
+    pub(crate) cells: Grid<Cell<CellContent>, CellSpace>,  // pub(crate) so the renderer can access this directly
+    pub(crate) bg: u8,
+    pub(crate) fg: u8
 }
 
 impl Screen {
-    pub fn new() -> Screen {
-        Screen { cells: Grid::new(
+    pub fn new(bg: u8, fg: u8) -> Screen {
+        Screen { bg, fg, cells: Grid::new(
             rect(0, 0, 0, 0), 
-            CellContent {
-                fg: 1,
-                bg: 0,
-                sem: SemanticContent::Blank,
-            }
+            || Cell::new(CellContent {
+                bg, fg, sem: SemanticContent::Blank,
+            })
         )}
     }
 
     pub fn resize(&mut self, sz: CellSize) {
-        self.cells.resize(rect(0, 0, sz.width, sz.height), CellContent {
-            fg: 1,
-            bg: 0,
-            sem: SemanticContent::Blank,
-        })
+        let bg = self.bg;
+        let fg = self.fg;
+        self.cells.resize(
+            rect(0, 0, sz.width, sz.height), 
+            || Cell::new(CellContent {
+                bg, fg, sem: SemanticContent::Blank,
+            })
+        )
     }
 
     pub fn rect(&self) -> CellRect {
@@ -37,13 +39,16 @@ impl Screen {
     }
 }
 
-impl Brushlike for Screen {
-    fn draw(&mut self, at: CellPoint, f: FSem) {
+impl Brushable for Screen {
+    fn draw(&self, at: CellPoint, f: FSem) {
         if !self.cells.rect().contains(at) { return; }
 
-        let c = self.cells.get_mut(at).unwrap();
-        if let Some(bg) = f.bg { c.bg = bg; }
-        if let Some(fg) = f.fg { c.fg = fg; }
-        if let Some(sprite) = f.sem { c.sem = sprite; }
+        let cell = self.cells.get(at).unwrap();
+        cell.update(|mut c| {
+            if let Some(bg) = f.bg { c.bg = bg; }
+            if let Some(fg) = f.fg { c.fg = fg; }
+            if let Some(sprite) = f.sem { c.sem = sprite; }
+            c
+        });
     }
 }

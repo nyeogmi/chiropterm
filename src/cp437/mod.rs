@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap};
 
 const UTF8_DATA: &[u8] = include_bytes!("data.bin");
 

@@ -1,6 +1,7 @@
 use euclid::point2;
 
-use crate::{aliases::{CellPoint}, cp437, drawing::Stamp, rendering::Font};
+use crate::{aliases::{CellPoint}, cp437, drawing::{Brushable}, rendering::Font};
+use crate::drawing::Brush;
 
 use super::{FChar, FString};
 
@@ -17,49 +18,35 @@ impl Preformatter {
         else { self.main_width_chars }
     }
 
-    fn leading(&self, y: usize) -> usize {
-        match (self.main_width_chars, self.first_width_chars) {
-            (Some(main_width), Some(first_width)) => {
-                if y == 0 {
-                    return 0
-                }
-
-                return main_width - first_width
-            },
-            (_, _) => 0
-        }
-    }
-
-    pub fn to_stamp(&self, s: &str) -> Stamp {
-        self.to_stamp_fstring(&self.to_fstring(s))
-    }
-
-    pub fn to_stamp_fstring(&self, fs: &FString) -> Stamp {
+    pub fn to_brush<U: Brushable>(&self, s: &str, brush: &mut Brush<U>) {
+        let fs = self.to_fstring(s);
         let words = self.break_words(&fs);
         let lines = self.break_lines(&words);
-        let stamp = self.to_stamp_internal(&lines, &words, fs);
-        stamp
+        self.onto_brush_internal(&lines, &words, &fs, brush)
     }
     
-    fn to_stamp_internal(
+    fn onto_brush_internal<U: Brushable>(
         &self,
         lines: &Vec<FLine>,
         words: &Vec<FWord>,
         characters: &FString,
-    ) -> Stamp {
-        let mut stamp = Stamp::new();
-
+        brush: &mut Brush<U>,
+    ) {
         let char_size = self.font.char_size();
+
+        let mut cursor_dx = brush.cursor.x as usize;
+        let cursor_dy = brush.cursor.y as usize;
 
         let mut x: usize = 0;
         let mut y: usize = 0;
 
         let mut forced_break: bool = false;
         while y < lines.len() {
+            if y > 0 { 
+                cursor_dx = 0; // no reason for future lines to be indented to match the cursor
+            }  
             let line = &lines[y];
-            x = 
-                self.leading(y) +
-                if let Some(w) = self.width(y) {
+            x = if let Some(w) = self.width(y) {
                     match self.justification {
                         Justification::Left => 0,
                         Justification::Right => w - line.width,
@@ -69,7 +56,9 @@ impl Preformatter {
 
             for w in line.lhs..line.rhs {
                 let word = words[w];
-                let rhs = if w == line.rhs - 1 {
+                // NYEO NOTE: For the last line of the input, get _all_ the extra chars
+                // Otherwise, drop the extra spaces
+                let rhs = if w == line.rhs - 1 && w != words.len() - 1 {  
                     word.whitespace_lhs
                 } else {
                     word.word_rhs
@@ -78,10 +67,10 @@ impl Preformatter {
                 for c in word.lhs..rhs {
                     // draw on stamp
                     // TODO: Depends on the font
-                    let cell_x = x as isize * char_size.width;
-                    let cell_y = y as isize * char_size.height;
+                    let cell_x = x as isize * char_size.width + cursor_dx as isize;
+                    let cell_y = y as isize * char_size.height + cursor_dy as isize;
 
-                    self.font.draw_char(point2(cell_x, cell_y), characters.0[c], &mut stamp);
+                    self.font.draw_char(point2(cell_x, cell_y), characters.0[c], brush);
                     x += 1;
                 }
             }
@@ -90,13 +79,14 @@ impl Preformatter {
             y += 1; 
         }
 
-        stamp.cursor_point = Some(if forced_break {
-            CellPoint::new(0, y as isize * char_size.height)
+        *brush = brush.at(if forced_break {
+            CellPoint::new(cursor_dx as isize, (y as isize * char_size.height) + cursor_dy as isize)
         } else {
-            CellPoint::new(x as isize * char_size.width, (y - 1) as isize * char_size.height)
+            CellPoint::new(
+                x as isize * char_size.width + cursor_dx as isize, 
+                ((y - 1) as isize * char_size.height) + cursor_dy as isize
+            )
         });
-
-        stamp
     }
 
     fn break_lines(&self, words: &[FWord]) -> Vec<FLine> {
@@ -278,7 +268,7 @@ struct FWord {
     force_break: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct FLine {
     lhs: usize,
     rhs: usize,

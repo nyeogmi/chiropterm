@@ -10,14 +10,6 @@ pub struct FChar {
 }
 
 impl FChar {
-    pub fn superimposed_on(self, below: FChar) -> FChar {
-        FChar { 
-            sprite: self.sprite.or(below.sprite), 
-            bg: self.bg.or(below.bg),
-            fg: self.fg.or(below.fg),
-        }
-    }
-
     pub(crate) fn sem(&self, semantic: impl Fn(u16) -> SemanticContent) -> FSem {
         FSem { 
             sem: self.sprite.map(semantic),

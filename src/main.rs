@@ -1,4 +1,5 @@
 #![feature(type_alias_impl_trait)]
+#![feature(cell_update)]
 extern crate minifb;
 
 #[macro_use] extern crate lazy_static;
@@ -13,51 +14,29 @@ mod window_management;
 
 use std::process::exit;
 
-use drawing::Brushlike;
-use euclid::{point2, vec2};
-use formatting::{FSem, Justification, Preformatter};
-use rendering::{Font, SemanticContent};
+use drawing::Brushable;
+use aliases::*;
+use rendering::Font;
 use window_management::IO;
 
 fn main() {
     let mut io = IO::new(*rendering::DEFAULT_SWATCH);
+
     io.wait(
         |io| {
-            for (at, sem) in (Preformatter {
-                font: Font::Set,
-                first_width_chars: Some(40),
-                main_width_chars: Some(40),
-                justification: Justification::Left,
-            }.to_stamp("WELCOME TO").iter()) {
-                io.screen.draw(at + vec2(2, 2), sem)
-            }
+            let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
 
-            for (at, sem) in (Preformatter {
-                font: Font::Fat,
-                first_width_chars: Some(40),
-                main_width_chars: Some(40),
-                justification: Justification::Left,
-            }.to_stamp("BATCON").iter()) {
-                io.screen.draw(at + vec2(24, 2), sem)
-            }
+            let b = content_box.at(point2(0, 0))
+            .bg(5).fg(0)
+            .font(Font::Set).putfs("WELCOME TO ")
+            .bg(2).font(Font::Fat).putfs("BATCON")
+            .font(Font::Small).putfs("TM").font(Font::Fat); // fat again (so the newline will work)
 
-            for (at, sem) in (Preformatter {
-                font: Font::Small,
-                first_width_chars: Some(40),
-                main_width_chars: Some(40),
-                justification: Justification::Left,
-            }.to_stamp("TM").iter()) {
-                io.screen.draw(at + vec2(36, 2), sem)
-            }
-
-            for (at, sem) in (Preformatter {
-                font: Font::Normal,
-                first_width_chars: Some(40),
-                main_width_chars: Some(40),
-                justification: Justification::Left,
-            }.to_stamp("the premier convention for all the bats").iter()) {
-                io.screen.draw(at + vec2(2, 4), sem)
-            }
+            b.bg(11).fg(1).on_newline().font(Font::Normal).putfs(concat!(
+                "the premier convention for all the bats ",
+                "and all the big bats and all the little ",
+                "bats and the bats and the bats",
+            ));
         },
         |_| exit(0)
     );
