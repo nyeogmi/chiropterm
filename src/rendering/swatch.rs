@@ -27,7 +27,7 @@ lazy_static! {
         }
         Swatch {
             colors: (&full_colors[..]).try_into().unwrap(),
-            default_bg: 11,
+            default_bg: 7,
             default_fg: 0,
         }
     };
