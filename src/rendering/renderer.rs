@@ -1,5 +1,5 @@
 use crate::{drawing::Screen};
-use crate::geom::PointsIn;
+use gridd_euclid::PointsIn;
 
 use crate::window_management::Aspect;
 

@@ -2,8 +2,9 @@ use std::cell::Cell;
 
 use crate::aliases::*;
 use crate::formatting::FSem;
-use crate::geom::Grid;
 use crate::rendering::{CellContent, SemanticContent};
+
+use gridd_euclid::Grid;
 
 use super::brush::Brushable;
 

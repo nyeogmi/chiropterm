@@ -8,7 +8,6 @@ mod aliases;
 mod cp437;
 mod drawing;
 mod formatting;
-mod geom;
 mod rendering;
 mod window_management;
 
