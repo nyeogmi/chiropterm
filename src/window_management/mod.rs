@@ -19,9 +19,9 @@ const ASPECT_CONFIG: AspectConfig = AspectConfig {
     cell_size: size2(8, 8),
 };
 
-const FRAMES_PER_SECOND: usize = 60;
-const FRAME_DURATION: usize = 16600; // 60 FPS
-const REDRAW_EVERY: u64 = 2;   // practically 30 FPS
+const FRAMES_PER_SECOND: usize = 30;
+const TRUE_FRAME_DURATION: usize = 1660; // 600 FPS
+const REDRAW_EVERY: u64 = 20;   // practically 30 FPS
 
 pub struct IO {
     frame: u64,
@@ -74,7 +74,7 @@ impl IO {
             panic!("{}", e); // TODO: Handle some errors
         });
         window.set_background_color(0, 0, 0); // TODO:
-        window.limit_update_rate(Some(std::time::Duration::from_micros(FRAME_DURATION as u64)));
+        window.limit_update_rate(Some(std::time::Duration::from_micros(TRUE_FRAME_DURATION as u64)));
         self.keyboard.monitor_minifb_utf32(&mut window);
         self.window = Some(window);
     }
@@ -148,7 +148,8 @@ impl IO {
     fn wait<'a>(&mut self, mut evt: EventLoop<'a>) {
         let mut old_aspect = None;
         for iteration in 0 as u64.. {
-            if let None = self.window { self.reconstitute_window() }
+            let mut window_changed: bool = false;
+            if let None = self.window { self.reconstitute_window(); window_changed = true }
             let aspect = self.reconstitute_buffer();  
 
             let aspect_changed = Some(aspect) != old_aspect;
@@ -176,17 +177,20 @@ impl IO {
             }
 
             self.screen.resize(aspect.term_size.cast());
-            let needs_redraw = iteration == 0 || aspect_changed;
-            if needs_redraw || self.frame % REDRAW_EVERY == 0  {
+            let needs_redraw = iteration == 0 || aspect_changed || window_changed;
+            if needs_redraw || iteration % REDRAW_EVERY == 0  {
                 (evt.on_redraw)(self);
                 self.draw(aspect);
-            }
 
-            let win = self.window.as_mut().unwrap();
-            // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
-            win
-                .update_with_buffer(&self.buffer, aspect.buf_size.width as usize, aspect.buf_size.height as usize)
-                .unwrap();
+                let win = self.window.as_mut().unwrap();
+                // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
+                win
+                    .update_with_buffer(&self.buffer, aspect.buf_size.width as usize, aspect.buf_size.height as usize)
+                    .unwrap();
+            } else {
+                let win = self.window.as_mut().unwrap();
+                win.update()
+            }
         }
     }
 
