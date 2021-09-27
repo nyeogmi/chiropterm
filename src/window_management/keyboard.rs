@@ -22,9 +22,8 @@ impl Keyboard {
             let mut corr = self.correlator.0.borrow_mut();
             let shift = window.is_key_down(MinifbKey::LeftShift) || window.is_key_down(MinifbKey::RightShift);
             let control = window.is_key_down(MinifbKey::LeftCtrl) || window.is_key_down(MinifbKey::RightCtrl);
-            let alt = window.is_key_down(MinifbKey::LeftAlt) || window.is_key_down(MinifbKey::RightAlt);
-            for key in pressed {
-                corr.minifb_keys.push(ModalMinifbKey { shift, control, alt, key });
+            for &key in pressed.iter() {
+                corr.minifb_keys.push_back(ModalMinifbKey { shift, control, key });
             }
         }
     }
@@ -49,7 +48,7 @@ impl minifb::InputCallback for KeyCorrelatorRef {
 #[derive(Debug)]
 struct KeyCorrelator {
     utf32_keys: VecDeque<(u32, u8)>,  // keycode, age in frames
-    minifb_keys: Vec<ModalMinifbKey>,
+    minifb_keys: VecDeque<ModalMinifbKey>,
     correlated_keys: VecDeque<ChiroptermKey>,
 }
 
@@ -57,7 +56,6 @@ struct KeyCorrelator {
 struct ModalMinifbKey {
     shift: bool,
     control: bool,
-    alt: bool,
     key: MinifbKey,
 }
 
@@ -65,16 +63,14 @@ impl KeyCorrelator {
     fn new() -> Self {
         KeyCorrelator {
             utf32_keys: VecDeque::new(),
-            minifb_keys: vec![],
+            minifb_keys: VecDeque::new(),
             correlated_keys: VecDeque::new(),
         }
     }
 
     fn correlate(&mut self) {
         // TODO: Preserve order instead of always putting utf32 keys first?
-        let len = self.utf32_keys.len();
-        for i in 0..len {
-            let (u, age) = self.utf32_keys.pop_front().unwrap();
+        while let Some((u, age)) = self.utf32_keys.pop_front() {
             let c = if let Some(c) = char::from_u32(u) { c } else {
                 continue // don't attempt to map utf32 gibberish
             };
@@ -88,12 +84,11 @@ impl KeyCorrelator {
                 }
 
                 if let Some(i) = provider {
-                    let existing = self.minifb_keys.remove(i);
+                    let existing = self.minifb_keys.remove(i).unwrap();
                     ChiroptermKey {
                         code: minifb_to_keycode(existing.key).or(most_likely_keycode(c)).unwrap_or(Keycode::Unknown),
                         shift: existing.shift,
                         control: existing.control,
-                        alt: existing.alt,
                         char: Some(c),
                     }
                 } else if age > FRAMES_UNTIL_GIVEUP {
@@ -102,27 +97,31 @@ impl KeyCorrelator {
                             code,
                             shift: false,
                             control: false,
-                            alt: false,
                             char: Some(c),
                         }
                     } else {
                         continue
                     }
                 } else {
-                    self.utf32_keys.push_back((u, age + 1));
-                    continue
+                    self.utf32_keys.push_front((u, age + 1)); // don't garble the order
+                    break  // and skip out now
                 }
             };
             self.correlated_keys.push_back(censor_unhelpful_features(chiropt_key))
         }
 
-        for mmk in self.minifb_keys.drain(..) {
-            if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key)  {
+        while let Some(mmk) = self.minifb_keys.pop_front() {
+            if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
+                /*
+                if chiropt_keycode.needs_correlation() {
+                    self.minifb_keys.push_front(mmk);
+                    break; // wait for the utf32 stream to catch up
+                }
+                */
                 self.correlated_keys.push_back(censor_unhelpful_features(ChiroptermKey {
                     code: chiropt_keycode,
                     shift: mmk.shift,
                     control: mmk.control,
-                    alt: mmk.alt,
                     // char: most_likely_char(chiropt_keycode),
                     char: None,
                 }))
@@ -137,7 +136,6 @@ pub struct ChiroptermKey {
     pub code: Keycode,  // TODO: Provide a KeyCode enum
     pub shift: bool,
     pub control: bool,
-    pub alt: bool,
     pub char: Option<char>,
 }
 
@@ -185,10 +183,28 @@ pub enum Keycode {
     // and doing so encourages developers to make UIs that won't work on most laptops
 }
 
+impl Keycode {
+    fn needs_correlation(&self) -> bool {
+        use Keycode::*;
+        match self {
+            F1 | F2 | F3 | F4 | F5 | F6 | F7 | F8 | F9 | F10 | F11 | F12 | F13 | F14 | F15 => false,
+            Down | Left | Right | Up => false,
+            Backspace | Delete | End | Enter => false,
+            Escape  => false,
+            Home | Insert | Menu => false,
+            PageDown | PageUp => false,
+            Pause => false,
+            Tab => false,
+            Unknown => false,
+            _ => true,
+        }
+    }
+}
+
 
 fn minifb_provides(mmk: ModalMinifbKey, utf: char, desperate: bool) -> bool {
     if !desperate {
-        if mmk.control || mmk.alt {
+        if mmk.control {
             return false
         }
     }
@@ -345,7 +361,7 @@ fn censor_unhelpful_features(mut key: ChiroptermKey) -> ChiroptermKey {
     }
 
     // Even if the char code wasn't found, try to find it by looking at shift
-    if key.shift && !key.control && !key.alt {
+    if key.shift && !key.control {
         key.code = match key.code {
             Backquote => Tilde, Key1 => Exclamation, Key2 => At, 
             Key3 => Pound, Key4 => Dollar, Key5 => Percent,

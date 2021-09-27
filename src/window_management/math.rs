@@ -10,7 +10,7 @@ pub struct AspectConfig {
     pub cell_size: PixelSize,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct Aspect {
     pub buf_size: PixelSize,
     pub term_size: CellSizeU16,
