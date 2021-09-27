@@ -1,12 +1,16 @@
+mod keyboard;
 mod math;
+mod menu;
 
 use euclid::size2;
-use minifb::{Key, KeyRepeat, Scale, ScaleMode, Window, WindowOptions};
+use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-use crate::{drawing::Screen, rendering::{Render, Swatch}};
+use crate::{drawing::Screen, rendering::{Render, Swatch}, window_management::keyboard::Keyboard};
 
-use self::math::{AspectConfig, calculate_aspect, default_window_size};
+use self::{math::{AspectConfig, calculate_aspect, default_window_size}, menu::{Handled, Menu}};
 pub use self::math::Aspect;
+
+pub use keyboard::{ChiroptermKey, Keycode};
 
 // TODO: Is a cell 2 characters across
 const ASPECT_CONFIG: AspectConfig = AspectConfig {
@@ -21,6 +25,8 @@ const FRAME_DURATION: usize = 2 * 16600; // 30 FPS
 pub struct IO {
     frame: u64,
     window: Option<Window>,
+    keyboard: Keyboard,
+
     buffer: Vec<u32>,
     swatch: Swatch,
     pub screen: Screen,  // TODO: Make private again later
@@ -32,7 +38,7 @@ struct EventLoop<'a> {
     on_redraw: Box<dyn 'a+FnMut(&mut IO)>,
     on_exit: Box<dyn 'a+FnMut(&mut IO)>,
 
-    on_keypress: Box<dyn 'a+FnMut(&mut IO, Key) -> Resume>,
+    on_keypress: Box<dyn 'a+FnMut(&mut IO, ChiroptermKey) -> Resume>,
     on_frame: Box<dyn 'a+FnMut(&mut IO) -> Resume>,
 }
 
@@ -44,7 +50,9 @@ enum Resume {
 impl IO {
     pub fn new(swatch: Swatch, default_on_exit: fn(&mut IO)) -> IO {
         IO { 
-            frame: 0, window: None, buffer: vec![], swatch, screen: Screen::new(swatch.default_bg, swatch.default_fg),
+            frame: 0, window: None, keyboard: Keyboard::new(),
+            
+            buffer: vec![], swatch, screen: Screen::new(swatch.default_bg, swatch.default_fg),
             default_on_exit,
         }
     }
@@ -67,7 +75,8 @@ impl IO {
         window.set_background_color(0, 0, 0); // TODO:
         // max 30FPS
         window.limit_update_rate(Some(std::time::Duration::from_micros(FRAME_DURATION as u64)));
-        self.window = Some(window)
+        self.keyboard.monitor_minifb_utf32(&mut window);
+        self.window = Some(window);
     }
 
     fn reconstitute_buffer(&mut self) -> Aspect {
@@ -85,17 +94,39 @@ impl IO {
         aspect
     }
 
-    pub fn getch(&mut self, on_redraw: impl FnMut(&mut IO)) -> Key {
-        let mut key = Key::Unknown;
+    pub fn getch(&mut self, on_redraw: impl FnMut(&mut IO)) -> ChiroptermKey {
+        let mut key = None;
         self.wait(EventLoop {
             on_redraw: Box::new(on_redraw),
             on_exit: Box::new(self.default_on_exit),
 
-            on_keypress: Box::new(|_, k| { key = k; Resume::Now }),
+            on_keypress: Box::new(|_, k| { key = Some(k); Resume::Now }),
             on_frame: Box::new(|_| Resume::NotYet),
         });
-        key
+        key.unwrap()
     }
+
+    pub fn menu(&mut self, mut on_redraw: impl FnMut(&mut IO, &Menu<'_>)) {
+        let menu = Menu::new();
+        self.wait(EventLoop {
+            on_redraw: Box::new(|io| { on_redraw(io, &menu) }),
+            on_exit: Box::new(self.default_on_exit),
+
+            on_keypress: Box::new(|_, k| { 
+                if let Handled::Yes = menu.handle(k) {
+                    return Resume::Now;
+                }
+                return Resume::NotYet
+            }),
+            on_frame: Box::new(|_| Resume::NotYet),
+        });
+    }
+
+    // TODO: getch alternative that provides a separate `Menu` argument that allows you to register a responder for a key.
+    // (or an IO that is configured for that, complete with relevant aliases)
+    // The Menu has fn register(k: Key, cb: impl FnMut(&mut IO)) 
+    // Doing so adds a handler for k.
+    // (Might provide it for k: impl Fn(Key) -> bool too.)
 
     pub fn sleep(&mut self, time: f64, on_redraw: impl FnMut(&mut IO)) {
         let mut frame = 0;
@@ -115,9 +146,6 @@ impl IO {
     }
 
     fn wait<'a>(&mut self, mut evt: EventLoop<'a>) {
-        // NYEO NOTE: What are we waiting for? 
-        // Multiple fns that call this would be ideal
-
         loop {
             if let None = self.window { self.reconstitute_window() }
             let aspect = self.reconstitute_buffer();  
@@ -135,10 +163,11 @@ impl IO {
             if let Resume::Now = (evt.on_frame)(self) { return }
 
             let win = self.window.as_mut().unwrap();
-            if let Some(pressed) = win.get_keys_pressed(KeyRepeat::Yes) {
-                for key in pressed {
-                    if let Resume::Now = (evt.on_keypress)(self, key) { return }
-                }
+            self.keyboard.add_pressed_keys(win);
+            self.keyboard.correlate();
+
+            while let Some(keypress) = self.keyboard.getch() {
+                if let Resume::Now = (evt.on_keypress)(self, keypress) { return }
             }
 
             self.screen.resize(aspect.term_size.cast());

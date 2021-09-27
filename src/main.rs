@@ -18,11 +18,13 @@ use aliases::*;
 use rendering::Font;
 use window_management::IO;
 
+use crate::window_management::Keycode;
+
 fn main() {
     let mut io = IO::new(*rendering::DEFAULT_SWATCH, |_| exit(0));
 
-    let k = io.getch(
-        |io| {
+    io.menu(
+        |io, menu| {
             let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
 
             let b = content_box.at(point2(0, 0))
@@ -36,6 +38,10 @@ fn main() {
                 "and all the big bats and all the little ",
                 "bats and the bats and the bats",
             ));
+
+            menu.on(Keycode::A, |k| {
+                println!("hit {:?}", k)
+            })
         },
     );
     
@@ -49,5 +55,4 @@ fn main() {
             .font(Font::Set).putfs("PLEASE WAIT");
         }
     );
-    println!("key: {:?}", k)
 }
