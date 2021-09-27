@@ -2,6 +2,8 @@ use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use minifb::{Key as MinifbKey, KeyRepeat, Window};
 
+const FRAMES_UNTIL_GIVEUP: u8 = 1; // give up on correlating utf32 characters after n frames
+
 pub struct Keyboard {
     correlator: KeyCorrelatorRef
 }
@@ -12,7 +14,7 @@ impl Keyboard {
     }
 
     pub fn monitor_minifb_utf32(&mut self, window: &mut Window) {
-        window.set_input_callback(Box::new(KeyCorrelatorRef(self.correlator.0.clone())))
+        window.set_input_callback(Box::new(KeyCorrelatorRef(Rc::clone(&self.correlator.0))))
     }
 
     pub fn add_pressed_keys(&mut self, window: &mut Window) {
@@ -22,7 +24,7 @@ impl Keyboard {
             let control = window.is_key_down(MinifbKey::LeftCtrl) || window.is_key_down(MinifbKey::RightCtrl);
             let alt = window.is_key_down(MinifbKey::LeftAlt) || window.is_key_down(MinifbKey::RightAlt);
             for key in pressed {
-                corr.minifb_keys.push(ModalMinifbKey { shift, control, alt, key })
+                corr.minifb_keys.push(ModalMinifbKey { shift, control, alt, key });
             }
         }
     }
@@ -40,17 +42,18 @@ struct KeyCorrelatorRef(Rc<RefCell<KeyCorrelator>>);
 
 impl minifb::InputCallback for KeyCorrelatorRef {
     fn add_char(&mut self, uni_char: u32) {
-        self.0.borrow_mut().utf32_keys.push(uni_char)
+        self.0.borrow_mut().utf32_keys.push_back((uni_char, 0))
     }
 }
 
+#[derive(Debug)]
 struct KeyCorrelator {
-    utf32_keys: Vec<u32>,
+    utf32_keys: VecDeque<(u32, u8)>,  // keycode, age in frames
     minifb_keys: Vec<ModalMinifbKey>,
     correlated_keys: VecDeque<ChiroptermKey>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct ModalMinifbKey {
     shift: bool,
     control: bool,
@@ -61,7 +64,7 @@ struct ModalMinifbKey {
 impl KeyCorrelator {
     fn new() -> Self {
         KeyCorrelator {
-            utf32_keys: vec![],
+            utf32_keys: VecDeque::new(),
             minifb_keys: vec![],
             correlated_keys: VecDeque::new(),
         }
@@ -69,7 +72,9 @@ impl KeyCorrelator {
 
     fn correlate(&mut self) {
         // TODO: Preserve order instead of always putting utf32 keys first?
-        for u in self.utf32_keys.drain(..) {
+        let len = self.utf32_keys.len();
+        for i in 0..len {
+            let (u, age) = self.utf32_keys.pop_front().unwrap();
             let c = if let Some(c) = char::from_u32(u) { c } else {
                 continue // don't attempt to map utf32 gibberish
             };
@@ -91,7 +96,7 @@ impl KeyCorrelator {
                         alt: existing.alt,
                         char: Some(c),
                     }
-                } else {
+                } else if age > FRAMES_UNTIL_GIVEUP {
                     if let Some(code) = most_likely_keycode(c) {
                         ChiroptermKey {
                             code,
@@ -103,6 +108,9 @@ impl KeyCorrelator {
                     } else {
                         continue
                     }
+                } else {
+                    self.utf32_keys.push_back((u, age + 1));
+                    continue
                 }
             };
             self.correlated_keys.push_back(censor_unhelpful_features(chiropt_key))
