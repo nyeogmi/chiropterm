@@ -19,9 +19,9 @@ use rendering::Font;
 use window_management::IO;
 
 fn main() {
-    let mut io = IO::new(*rendering::DEFAULT_SWATCH);
+    let mut io = IO::new(*rendering::DEFAULT_SWATCH, |_| exit(0));
 
-    io.wait(
+    let k = io.getch(
         |io| {
             let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
 
@@ -37,6 +37,17 @@ fn main() {
                 "bats and the bats and the bats",
             ));
         },
-        |_| exit(0)
     );
+    
+    io.sleep(
+        1.0,
+        |io| {
+            let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
+
+            let b = content_box.at(point2(0, 0))
+            .bg(10).fg(15)
+            .font(Font::Set).putfs("PLEASE WAIT");
+        }
+    );
+    println!("key: {:?}", k)
 }

@@ -1,7 +1,7 @@
 mod math;
 
-use euclid::{size2};
-use minifb::{Scale, ScaleMode, Window, WindowOptions};
+use euclid::size2;
+use minifb::{Key, KeyRepeat, Scale, ScaleMode, Window, WindowOptions};
 
 use crate::{drawing::Screen, rendering::{Render, Swatch}};
 
@@ -15,18 +15,37 @@ const ASPECT_CONFIG: AspectConfig = AspectConfig {
     cell_size: size2(8, 8),
 };
 
+const FRAMES_PER_SECOND: usize = 30;
+const FRAME_DURATION: usize = 2 * 16600; // 30 FPS
+
 pub struct IO {
     frame: u64,
     window: Option<Window>,
     buffer: Vec<u32>,
     swatch: Swatch,
     pub screen: Screen,  // TODO: Make private again later
+
+    default_on_exit: fn(&mut IO),
+}
+
+struct EventLoop<'a> {
+    on_redraw: Box<dyn 'a+FnMut(&mut IO)>,
+    on_exit: Box<dyn 'a+FnMut(&mut IO)>,
+
+    on_keypress: Box<dyn 'a+FnMut(&mut IO, Key) -> Resume>,
+    on_frame: Box<dyn 'a+FnMut(&mut IO) -> Resume>,
+}
+
+enum Resume {
+    NotYet,
+    Now,
 }
 
 impl IO {
-    pub fn new(swatch: Swatch) -> IO {
+    pub fn new(swatch: Swatch, default_on_exit: fn(&mut IO)) -> IO {
         IO { 
-            frame: 0, window: None, buffer: vec![], swatch, screen: Screen::new(swatch.default_bg, swatch.default_fg) 
+            frame: 0, window: None, buffer: vec![], swatch, screen: Screen::new(swatch.default_bg, swatch.default_fg),
+            default_on_exit,
         }
     }
 
@@ -47,7 +66,7 @@ impl IO {
         });
         window.set_background_color(0, 0, 0); // TODO:
         // max 30FPS
-        window.limit_update_rate(Some(std::time::Duration::from_micros(2 * 16600)));
+        window.limit_update_rate(Some(std::time::Duration::from_micros(FRAME_DURATION as u64)));
         self.window = Some(window)
     }
 
@@ -66,25 +85,64 @@ impl IO {
         aspect
     }
 
-    pub fn wait(&mut self, mut on_redraw: impl FnMut(&mut IO), mut on_exit: impl FnMut(&IO)) {
+    pub fn getch(&mut self, on_redraw: impl FnMut(&mut IO)) -> Key {
+        let mut key = Key::Unknown;
+        self.wait(EventLoop {
+            on_redraw: Box::new(on_redraw),
+            on_exit: Box::new(self.default_on_exit),
+
+            on_keypress: Box::new(|_, k| { key = k; Resume::Now }),
+            on_frame: Box::new(|_| Resume::NotYet),
+        });
+        key
+    }
+
+    pub fn sleep(&mut self, time: f64, on_redraw: impl FnMut(&mut IO)) {
+        let mut frame = 0;
+        self.wait(EventLoop {
+            on_redraw: Box::new(on_redraw),
+            on_exit: Box::new(self.default_on_exit),
+
+            on_keypress: Box::new(|_, __| Resume::NotYet),
+            on_frame: Box::new(|_| {
+                if frame as f64 / FRAMES_PER_SECOND as f64 > time {
+                    return Resume::Now;
+                }
+                frame += 1;
+                Resume::NotYet
+            }),
+        });
+    }
+
+    fn wait<'a>(&mut self, mut evt: EventLoop<'a>) {
         // NYEO NOTE: What are we waiting for? 
         // Multiple fns that call this would be ideal
 
         loop {
             if let None = self.window { self.reconstitute_window() }
-            let aspect = self.reconstitute_buffer();
+            let aspect = self.reconstitute_buffer();  
+            // TODO: On the _first_ pass, clear the screen
 
             // set by reconstitute()
             let win = self.window.as_mut().unwrap();
 
             if !win.is_open() {
-                on_exit(self);
+                (evt.on_exit)(self);
                 self.window = None;
                 continue;  // try again
             }
 
+            if let Resume::Now = (evt.on_frame)(self) { return }
+
+            let win = self.window.as_mut().unwrap();
+            if let Some(pressed) = win.get_keys_pressed(KeyRepeat::Yes) {
+                for key in pressed {
+                    if let Resume::Now = (evt.on_keypress)(self, key) { return }
+                }
+            }
+
             self.screen.resize(aspect.term_size.cast());
-            on_redraw(self);
+            (evt.on_redraw)(self);
             self.draw(aspect);
 
             let win = self.window.as_mut().unwrap();
