@@ -186,7 +186,6 @@ fn minifb_provides(mmk: ModalMinifbKey, utf: char, desperate: bool) -> bool {
     }
 
     use MinifbKey::*;
-    // TODO: Keys that use shift
     match (mmk.key, utf.to_ascii_uppercase()) {
         (Space, ' ') | (Tab, '\t') =>
             return true,
@@ -207,17 +206,34 @@ fn minifb_provides(mmk: ModalMinifbKey, utf: char, desperate: bool) -> bool {
         (Slash, '/') =>
             return true,
 
+        (Backquote, '~') | 
+        (Key1, '!') | (NumPad1, '!') | (Key2, '@') | (NumPad2, '@') |
+        (Key3, '#') | (NumPad3, '#') | (Key4, '$') | (NumPad4, '$') |
+        (Key5, '%') | (NumPad5, '%') | (Key6, '^') | (NumPad6, '^') |
+        (Key7, '&') | (NumPad7, '&') | (Key8, '*') | (NumPad8, '*') | 
+        (Key9, '(') | (NumPad9, '(') | (Key0, ')') | (NumPad0, ')') =>
+            return true,
+
+        (Minus, '_') | (Equal, '+') | (LeftBracket, '{') | (RightBracket, '}') | (Backslash, '|') | 
+        (Semicolon, ':') | (Apostrophe, '"') | (Comma, '<') | (Period, '>') | (Slash, '?') =>
+            return true,
+
+        (NumPadAsterisk, '*') | (NumPadDot, '.') | (NumPadEnter, '\n') | (NumPadEnter, '\r') |
+        (NumPadMinus, '-') | (NumPadPlus, '+') | (NumPadSlash, '/') =>
+            return true,
+
+        (NumPad0, '0') | (NumPad1, '1') | (NumPad2, '2') | (NumPad3, '3') | (NumPad4, '4') | 
+        (NumPad5, '5') | (NumPad6, '6') | (NumPad7, '7') | (NumPad8, '8') | (NumPad9, '9') 
+            if desperate =>
+                return true,
+        
+        (NumPadDot, '?') | (NumPadMinus, '+') | (NumPadSlash, '?') 
+            if desperate =>
+                return true,
+
         _ => {}
     }
 
-    if desperate {
-        match (mmk.key, utf) {
-            (NumPad0, '0') | (NumPad1, '1') | (NumPad2, '2') | (NumPad3, '3') | (NumPad4, '4') | 
-            (NumPad5, '5') | (NumPad6, '6') | (NumPad7, '7') | (NumPad8, '8') | (NumPad9, '9') =>
-                return true,
-            _ => {}
-        }
-    };
     false
 }
 
@@ -306,6 +322,7 @@ fn censor_unhelpful_features(mut key: ChiroptermKey) -> ChiroptermKey {
 
     use Keycode::*;
     // Try really hard to map shifty chars to punctuation codes
+    let old_key_code = key.code;
     if let Some(c) = key.char {
         key.code = match c {
             '~' => Tilde, '!' => Exclamation, '@' => At, '#' => Pound,
@@ -333,6 +350,10 @@ fn censor_unhelpful_features(mut key: ChiroptermKey) -> ChiroptermKey {
             Slash => QuestionMark,
             _ => key.code,
         }
+    }
+    if key.code != old_key_code {
+        // shifty character!!! because it's inherently shifty, turn off the shift modifier
+        key.shift = false;
     }
 
     key

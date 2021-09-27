@@ -14,6 +14,7 @@ impl<'a> Menu<'a> {
     }
 
     pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(ChiroptermKey)) {
+        // TODO: Require ctrl/alt to be right
         self.key_handlers.borrow_mut().push(Handler(Box::new(move |k_got| {
             if k_got.code != k { return Handled::No }
             cb(k_got);
