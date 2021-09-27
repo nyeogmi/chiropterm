@@ -177,9 +177,15 @@ impl IO {
             }
 
             self.screen.resize(aspect.term_size.cast());
-            let needs_redraw = iteration == 0 || aspect_changed || window_changed;
-            if needs_redraw || iteration % REDRAW_EVERY == 0  {
+            let needs_virtual_redraw = iteration == 0 || aspect_changed;
+
+            if needs_virtual_redraw {
+                self.screen.clear();
                 (evt.on_redraw)(self);
+            }
+
+            let needs_physical_redraw = iteration == 0 || aspect_changed || window_changed || needs_virtual_redraw;
+            if needs_physical_redraw || iteration % REDRAW_EVERY == 0  {
                 self.draw(aspect);
 
                 let win = self.window.as_mut().unwrap();

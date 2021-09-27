@@ -4,7 +4,7 @@ use crate::aliases::*;
 use crate::formatting::FSem;
 use crate::rendering::{CellContent, SemanticContent};
 
-use gridd_euclid::Grid;
+use gridd_euclid::{Grid, PointsIn};
 
 use super::brush::Brushable;
 
@@ -22,6 +22,18 @@ impl Screen {
                 bg, fg, sem: SemanticContent::Blank,
             })
         )}
+    }
+
+    pub fn clear(&mut self) {
+        for at in isize::points_in(self.cells.rect()) {
+            let cell = self.cells.get(at).unwrap();
+            cell.update(|mut c| {
+                c.bg = self.bg;
+                c.fg = self.fg;
+                c.sem = SemanticContent::Blank;
+                c
+            });
+        }
     }
 
     pub fn resize(&mut self, sz: CellSize) {
