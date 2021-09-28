@@ -1,5 +1,5 @@
-#![feature(type_alias_impl_trait)]
 #![feature(cell_update)]
+#![feature(type_alias_impl_trait)]
 extern crate minifb;
 
 #[macro_use] extern crate lazy_static;
@@ -30,7 +30,6 @@ fn main() {
             let interactor = menu.interactor(Keycode::B, |k| {
                 println!("hit {:?}", k)
             });
-            println!("interactor: {:?}", interactor);
 
             let b = content_box.at(point2(0, 0))
             .bg(10).fg(15)

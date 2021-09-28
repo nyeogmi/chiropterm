@@ -3,7 +3,7 @@ use gridd_euclid::PointsIn;
 
 use crate::window_management::Aspect;
 
-use super::{Swatch};
+use super::{Interactor, Swatch};
 
 pub struct Render<'a> {
     pub frame: u64,
@@ -15,18 +15,31 @@ pub struct Render<'a> {
 
 
 impl<'a> Render<'a> {
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self, interactor: Interactor) {
         let screen_rect = self.screen.rect();
         let term_rect = self.aspect.term_rect();
         assert_eq!(screen_rect, term_rect.cast());
 
         for term_xy in u16::points_in(term_rect) {
             let content = self.screen.cells.get(term_xy.cast()).unwrap().get();
+            let interacting_here = if interactor == Interactor::none() { false } else { content.interactor == interactor };
+
             let tile = super::font::eval(content.sem);
+
+            let fg: u8;
+            let bg: u8;
+            if interacting_here {
+                // flash!
+                fg = content.bg;
+                bg = content.fg;
+            } else {
+                fg = content.fg;
+                bg = content.bg;
+            }
 
             tile.render(
                 self.buffer, term_xy.x, term_xy.y, self.aspect.term_size.width, 
-                self.swatch.get(content.fg), self.swatch.get(content.bg)
+                self.swatch.get(fg), self.swatch.get(bg)
             );
         }
     }

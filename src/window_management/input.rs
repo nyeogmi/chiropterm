@@ -8,8 +8,8 @@ pub enum InputEvent {
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum MouseEvent {
-    Click(MouseButton, CellPoint, Option<Interactor>),
-    Up(MouseButton, CellPoint, Option<Interactor>),
+    Click(MouseButton, CellPoint, Interactor),
+    Up(MouseButton, CellPoint, Interactor),
     // wheel, dragging
 }
 

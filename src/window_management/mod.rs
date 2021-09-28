@@ -7,7 +7,7 @@ mod mouse;
 use euclid::size2;
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-use crate::{drawing::Screen, rendering::{Render, Swatch}, window_management::keyboard::Keyboard};
+use crate::{drawing::Screen, rendering::{Interactor, Render, Swatch}, window_management::keyboard::Keyboard};
 
 use self::{input::InputEvent, math::{AspectConfig, calculate_aspect, default_window_size}, menu::{Handled, Menu}, mouse::Mouse};
 pub use self::math::Aspect;
@@ -183,7 +183,7 @@ impl IO {
             self.keyboard.correlate();
             let cells = &self.screen.cells;
             self.mouse.update(aspect, win, |xy| 
-                cells.get(xy).map(|i| i.get().interactor)
+                cells.get(xy).map(|i| i.get().interactor).unwrap_or(Interactor::none())
             );
 
             while let Some(keypress) = self.keyboard.getch() {
@@ -194,9 +194,11 @@ impl IO {
                 if let Resume::Now = (evt.on_input)(self, InputEvent::Mouse(mouse_evt)) { return }
             }
 
-            let needs_physical_redraw = iteration == 0 || aspect_changed || window_changed || needs_virtual_redraw;
+            let interactor_changed = self.mouse.interactor_changed();
+
+            let needs_physical_redraw = iteration == 0 || aspect_changed || window_changed || needs_virtual_redraw || interactor_changed;
             if needs_physical_redraw || iteration % REDRAW_EVERY == 0  {
-                self.draw(aspect);
+                self.draw(aspect, self.mouse.interactor());
 
                 let win = self.window.as_mut().unwrap();
                 // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
@@ -210,7 +212,7 @@ impl IO {
         }
     }
 
-    fn draw(&mut self, aspect: Aspect) {
+    fn draw(&mut self, aspect: Aspect, interactor: Interactor) {
         self.frame += 1;
         Render { 
             aspect, 
@@ -218,6 +220,6 @@ impl IO {
             buffer: &mut self.buffer, 
             swatch: self.swatch,
             screen: &self.screen,
-        }.draw()
+        }.draw(interactor)
     }
 }

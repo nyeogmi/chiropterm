@@ -38,10 +38,9 @@ impl<'a> Menu<'a> {
     }
 
     pub(crate) fn handle(&self, i: InputEvent) -> Handled {
-        println!("got: {:?}", i);
         match i {
             InputEvent::Keyboard(_) => { Handled::No },
-            InputEvent::Mouse(MouseEvent::Click(MouseButton::Left, _, Some(interactor))) => {
+            InputEvent::Mouse(MouseEvent::Click(MouseButton::Left, _, interactor)) => {
                 if let Some(ix) = interactor.index() {
                     let mut hnd = self.handlers.borrow_mut();
                     if ix < hnd.len() { return (hnd[ix].0)(i); };

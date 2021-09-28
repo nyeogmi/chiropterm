@@ -19,7 +19,7 @@ struct State {
     left: bool,
     right: bool,
     cell_xy: CellPoint,
-    interactor: Option<Interactor>,
+    interactor: Interactor,
 }
 
 
@@ -36,7 +36,7 @@ impl Mouse {
         self.events.pop_front()
     }
 
-    pub fn update(&mut self, aspect: Aspect, window: &mut Window, any_interactor: impl Fn(CellPoint) -> Option<Interactor>) {
+    pub fn update(&mut self, aspect: Aspect, window: &mut Window, any_interactor: impl Fn(CellPoint) -> Interactor) {
         let current_state = Mouse::current_state(aspect, window, any_interactor);
 
         if let None = current_state {
@@ -62,7 +62,7 @@ impl Mouse {
         }
     }
 
-    fn current_state(aspect: Aspect, window: &mut Window, get_interactor: impl Fn(CellPoint) -> Option<Interactor>) -> Option<State> {
+    fn current_state(aspect: Aspect, window: &mut Window, get_interactor: impl Fn(CellPoint) -> Interactor) -> Option<State> {
         let mouse_pos = if let Some(mp) = window.get_mouse_pos(MouseMode::Pass) { 
             mp 
         } else { return None };
@@ -77,6 +77,23 @@ impl Mouse {
             cell_xy,
             interactor: get_interactor(cell_xy),
         })
+    }
+
+    pub fn interactor_changed(&self) -> bool {
+        let i0 = Self::ext_interactor(self.old);
+        let i1 = Self::ext_interactor(self.new);
+        return i0 != i1;
+    }
+
+    pub fn interactor(&self) -> Interactor {
+        Self::ext_interactor(self.new)
+    }
+
+    fn ext_interactor(st: Option<State>) -> Interactor {
+        match st {
+            None => Interactor::none(),
+            Some(st) => st.interactor
+        }
     }
 }
 // TODO: Scroll wheel?
