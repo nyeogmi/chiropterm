@@ -63,13 +63,16 @@ impl Mouse {
     }
 
     fn current_state(aspect: Aspect, window: &mut Window, get_interactor: impl Fn(CellPoint) -> Interactor) -> Option<State> {
-        let mouse_pos = if let Some(mp) = window.get_mouse_pos(MouseMode::Pass) { 
+        // NYEO NOTE: The logic in minifb to compensate for DPI scaling is wrong.
+        // This logic is correct, however.
+        let mouse_pos = if let Some(mp) = window.get_unscaled_mouse_pos(MouseMode::Pass) { 
             mp 
         } else { return None };
-        let cell_xy = point2(
-            (mouse_pos.0 / aspect.cell_size.width as f32) as isize, 
-            (mouse_pos.1 / aspect.cell_size.height as f32) as isize,
-        );
+        let overall_size = window.get_size();
+        let mouse_x_ideal = ((mouse_pos.0 / overall_size.0 as f32) * aspect.term_size.width as f32) as isize;
+        let mouse_y_ideal = ((mouse_pos.1 / overall_size.1 as f32) * aspect.term_size.height as f32) as isize;
+        
+        let cell_xy = point2(mouse_x_ideal, mouse_y_ideal);
 
         Some(State { 
             left: window.get_mouse_down(MinifbMouseButton::Left),

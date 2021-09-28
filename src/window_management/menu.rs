@@ -16,18 +16,7 @@ impl<'a> Menu<'a> {
         }
     }
 
-    /*
-    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent)) {
-        // TODO: Require ctrl/alt to be right
-        self.key_handlers.borrow_mut().push(Handler(Box::new(move |k_got| {
-            if k_got.code != k { return Handled::No }
-            cb(k_got);
-            Handled::Yes
-        })))
-    }
-    */
-
-    pub fn interactor(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent)) -> Interactor {
+    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent)) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
