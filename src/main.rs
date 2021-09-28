@@ -46,12 +46,6 @@ fn main() {
                 "and all the big bats and all the little ",
                 "bats and the bats and the bats",
             ));
-
-            /*
-            menu.on(Keycode::A, |k| {
-                println!("hit {:?}", k)
-            })
-            */
         },
     );
     
