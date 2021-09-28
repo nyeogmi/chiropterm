@@ -28,11 +28,11 @@ fn main() {
             let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
 
             let interactor_one = menu.on(Keycode::B, |k| {
-                println!("hit {:?}", k)
+                println!("hit (1) {:?}", k)
             });
 
-            let interactor_two = menu.on(Keycode::B, |k| {
-                println!("hit {:?}", k)
+            let interactor_two = menu.on(Keycode::C, |k| {
+                println!("hit (2) {:?}", k)
             });
 
             let b = content_box.at(point2(0, 0))
