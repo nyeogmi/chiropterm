@@ -1,16 +1,18 @@
+mod input;
 mod keyboard;
 mod math;
 mod menu;
+mod mouse;
 
 use euclid::size2;
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
 use crate::{drawing::Screen, rendering::{Render, Swatch}, window_management::keyboard::Keyboard};
 
-use self::{math::{AspectConfig, calculate_aspect, default_window_size}, menu::{Handled, Menu}};
+use self::{input::InputEvent, math::{AspectConfig, calculate_aspect, default_window_size}, menu::{Handled, Menu}, mouse::Mouse};
 pub use self::math::Aspect;
 
-pub use keyboard::{ChiroptermKey, Keycode};
+pub use input::*;
 
 // TODO: Is a cell 2 characters across
 const ASPECT_CONFIG: AspectConfig = AspectConfig {
@@ -24,14 +26,20 @@ const TRUE_FRAME_DURATION: usize = 1660; // 600 FPS
 const REDRAW_EVERY: u64 = 20;   // practically 30 FPS
 
 pub struct IO {
+    // user vars
     frame: u64,
+
+    // io drivers
     window: Option<Window>,
     keyboard: Keyboard,
+    mouse: Mouse,
 
+    // renderer state
     buffer: Vec<u32>,
     swatch: Swatch,
     pub screen: Screen,  // TODO: Make private again later
 
+    // evt loop default hooks
     default_on_exit: fn(&mut IO),
 }
 
@@ -39,7 +47,7 @@ struct EventLoop<'a> {
     on_redraw: Box<dyn 'a+FnMut(&mut IO)>,
     on_exit: Box<dyn 'a+FnMut(&mut IO)>,
 
-    on_keypress: Box<dyn 'a+FnMut(&mut IO, ChiroptermKey) -> Resume>,
+    on_input: Box<dyn 'a+FnMut(&mut IO, InputEvent) -> Resume>,
     on_frame: Box<dyn 'a+FnMut(&mut IO) -> Resume>,
 }
 
@@ -51,7 +59,7 @@ enum Resume {
 impl IO {
     pub fn new(swatch: Swatch, default_on_exit: fn(&mut IO)) -> IO {
         IO { 
-            frame: 0, window: None, keyboard: Keyboard::new(),
+            frame: 0, window: None, keyboard: Keyboard::new(), mouse: Mouse::new(),
             
             buffer: vec![], swatch, screen: Screen::new(swatch.default_bg, swatch.default_fg),
             default_on_exit,
@@ -94,16 +102,16 @@ impl IO {
         aspect
     }
 
-    pub fn getch(&mut self, on_redraw: impl FnMut(&mut IO)) -> ChiroptermKey {
-        let mut key = None;
+    pub fn getch(&mut self, on_redraw: impl FnMut(&mut IO)) -> InputEvent {
+        let mut inp = None;
         self.wait(EventLoop {
             on_redraw: Box::new(on_redraw),
             on_exit: Box::new(self.default_on_exit),
 
-            on_keypress: Box::new(|_, k| { key = Some(k); Resume::Now }),
+            on_input: Box::new(|_, i| { inp = Some(i); Resume::Now }),
             on_frame: Box::new(|_| Resume::NotYet),
         });
-        key.unwrap()
+        inp.unwrap()
     }
 
     pub fn menu(&mut self, mut on_redraw: impl FnMut(&mut IO, &Menu<'_>)) {
@@ -112,29 +120,23 @@ impl IO {
             on_redraw: Box::new(|io| { on_redraw(io, &menu) }),
             on_exit: Box::new(self.default_on_exit),
 
-            on_keypress: Box::new(|_, k| { 
-                if let Handled::Yes = menu.handle(k) {
-                    return Resume::Now;
-                }
-                return Resume::NotYet
+            on_input: Box::new(|_, i| { 
+                if let Handled::Yes = menu.handle(i) { return Resume::Now; }
+                Resume::NotYet
             }),
             on_frame: Box::new(|_| Resume::NotYet),
         });
     }
 
-    // TODO: getch alternative that provides a separate `Menu` argument that allows you to register a responder for a key.
-    // (or an IO that is configured for that, complete with relevant aliases)
-    // The Menu has fn register(k: Key, cb: impl FnMut(&mut IO)) 
-    // Doing so adds a handler for k.
-    // (Might provide it for k: impl Fn(Key) -> bool too.)
 
     pub fn sleep(&mut self, time: f64, on_redraw: impl FnMut(&mut IO)) {
+        // TODO: Clear clicks and keys if we're sleeping
         let mut frame = 0;
         self.wait(EventLoop {
             on_redraw: Box::new(on_redraw),
             on_exit: Box::new(self.default_on_exit),
 
-            on_keypress: Box::new(|_, __| Resume::NotYet),
+            on_input: Box::new(|_, __| Resume::NotYet),
             on_frame: Box::new(|_| {
                 if frame as f64 / FRAMES_PER_SECOND as f64 > time {
                     return Resume::Now;
@@ -155,8 +157,6 @@ impl IO {
             let aspect_changed = Some(aspect) != old_aspect;
             old_aspect = Some(aspect);
 
-            // TODO: On the _first_ pass, clear the screen
-
             // set by reconstitute()
             let win = self.window.as_mut().unwrap();
 
@@ -171,9 +171,14 @@ impl IO {
             let win = self.window.as_mut().unwrap();
             self.keyboard.add_pressed_keys(win);
             self.keyboard.correlate();
+            self.mouse.update(aspect, win);
 
             while let Some(keypress) = self.keyboard.getch() {
-                if let Resume::Now = (evt.on_keypress)(self, keypress) { return }
+                if let Resume::Now = (evt.on_input)(self, InputEvent::Keyboard(keypress)) { return }
+            }
+
+            while let Some(mouse_evt) = self.mouse.getch() {
+                if let Resume::Now = (evt.on_input)(self, InputEvent::Mouse(mouse_evt)) { return }
             }
 
             self.screen.resize(aspect.term_size.cast());

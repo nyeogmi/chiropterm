@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use super::keyboard::{ChiroptermKey, Keycode};
+use super::input::{InputEvent, KeyEvent, Keycode};
 
 pub struct Menu<'a> {
     key_handlers: RefCell<Vec<Handler<'a>>>
@@ -13,7 +13,7 @@ impl<'a> Menu<'a> {
         }
     }
 
-    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(ChiroptermKey)) {
+    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent)) {
         // TODO: Require ctrl/alt to be right
         self.key_handlers.borrow_mut().push(Handler(Box::new(move |k_got| {
             if k_got.code != k { return Handled::No }
@@ -22,16 +22,22 @@ impl<'a> Menu<'a> {
         })))
     }
 
-    pub(crate) fn handle(&self, k: ChiroptermKey) -> Handled {
-        for h in self.key_handlers.borrow_mut().iter_mut() {
-            if let Handled::Yes = (h.0)(k) { return Handled::Yes }
+    pub(crate) fn handle(&self, i: InputEvent) -> Handled {
+        // println!("got: {:?}", i);
+        match i {
+            InputEvent::Keyboard(k) =>  {
+                for h in self.key_handlers.borrow_mut().iter_mut() {
+                    if let Handled::Yes = (h.0)(k) { return Handled::Yes }
+                };
+                Handled::No
+            }
+            _ => Handled::No,  // TODO: Menus support mice too, ideally!
         }
-        return Handled::No;
     }
 }
 
 struct Handler<'a> (
-    Box<dyn 'a+FnMut(ChiroptermKey) -> Handled>,
+    Box<dyn 'a+FnMut(KeyEvent) -> Handled>,
 );
 
 pub(crate) enum Handled { Yes, No }

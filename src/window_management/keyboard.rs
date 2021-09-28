@@ -2,6 +2,8 @@ use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use minifb::{Key as MinifbKey, KeyRepeat, Window};
 
+use super::input::{KeyEvent, Keycode};
+
 const FRAMES_UNTIL_GIVEUP: u8 = 1; // give up on correlating utf32 characters after n frames
 
 pub struct Keyboard {
@@ -32,8 +34,8 @@ impl Keyboard {
         self.correlator.0.borrow_mut().correlate()
     }
 
-    pub fn getch(&self) -> Option<ChiroptermKey> {
-        self.correlator.0.borrow_mut().correlated_keys.pop_front()
+    pub fn getch(&mut self) -> Option<KeyEvent> {
+        self.correlator.0.borrow_mut().events.pop_front()
     }
 }
 
@@ -49,7 +51,7 @@ impl minifb::InputCallback for KeyCorrelatorRef {
 struct KeyCorrelator {
     utf32_keys: VecDeque<(u32, u8)>,  // keycode, age in frames
     minifb_keys: VecDeque<ModalMinifbKey>,
-    correlated_keys: VecDeque<ChiroptermKey>,
+    events: VecDeque<KeyEvent>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -64,7 +66,7 @@ impl KeyCorrelator {
         KeyCorrelator {
             utf32_keys: VecDeque::new(),
             minifb_keys: VecDeque::new(),
-            correlated_keys: VecDeque::new(),
+            events: VecDeque::new(),
         }
     }
 
@@ -85,7 +87,7 @@ impl KeyCorrelator {
 
                 if let Some(i) = provider {
                     let existing = self.minifb_keys.remove(i).unwrap();
-                    ChiroptermKey {
+                    KeyEvent {
                         code: minifb_to_keycode(existing.key).or(most_likely_keycode(c)).unwrap_or(Keycode::Unknown),
                         shift: existing.shift,
                         control: existing.control,
@@ -93,7 +95,7 @@ impl KeyCorrelator {
                     }
                 } else if age > FRAMES_UNTIL_GIVEUP {
                     if let Some(code) = most_likely_keycode(c) {
-                        ChiroptermKey {
+                        KeyEvent {
                             code,
                             shift: false,
                             control: false,
@@ -107,7 +109,7 @@ impl KeyCorrelator {
                     break  // and skip out now
                 }
             };
-            self.correlated_keys.push_back(censor_unhelpful_features(chiropt_key))
+            self.events.push_back(censor_unhelpful_features(chiropt_key))
         }
 
         while let Some(mmk) = self.minifb_keys.pop_front() {
@@ -118,7 +120,7 @@ impl KeyCorrelator {
                     break; // wait for the utf32 stream to catch up
                 }
                 */
-                self.correlated_keys.push_back(censor_unhelpful_features(ChiroptermKey {
+                self.events.push_back(censor_unhelpful_features(KeyEvent {
                     code: chiropt_keycode,
                     shift: mmk.shift,
                     control: mmk.control,
@@ -129,78 +131,6 @@ impl KeyCorrelator {
         }
     }
 }
-
-// TODO: Add an "is_accept()" method that returns true for enter and space
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ChiroptermKey {
-    pub code: Keycode,  // TODO: Provide a KeyCode enum
-    pub shift: bool,
-    pub control: bool,
-    pub char: Option<char>,
-}
-
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
-pub enum Keycode {
-    // Unashamedly inspired by a similar enum from minifb
-    Key0 = 0, Key1 = 1, Key2 = 2, Key3 = 3, Key4 = 4,
-    Key5 = 5, Key6 = 6, Key7 = 7, Key8 = 8, Key9 = 9,
-
-    A = 10, B = 11, C = 12, D = 13, E = 14, F = 15,
-    G = 16, H = 17, I = 18, J = 19, K = 20, L = 21,
-    M = 22, N = 23, O = 24, P = 25, Q = 26, R = 27,
-    S = 28, T = 29, U = 30, V = 31, W = 32, X = 33,
-    Y = 34, Z = 35,
-
-    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15,
-
-    Down, Left, Right, Up,
-    Apostrophe, Backquote,
-
-    Backslash, Comma, Equal, LeftBracket,
-    Minus, Period, RightBracket, Semicolon,
-    Slash, Backspace, Delete, End, Enter,
-
-    Escape,
-    Home, Insert, Menu,
-    PageDown, PageUp,
-    Pause, 
-    
-    Space, Tab,
-
-    // TODO: Shift punctuation
-    Tilde,
-    Exclamation, At, Pound, Dollar, Percent, Caret, Ampersand, Asterisk,
-    LeftParen, RightParen, Underscore, Plus, LeftBrace, RightBrace,
-    Pipe, Colon, DoubleQuote,
-    LessThan, GreaterThan, QuestionMark,
-
-    Unknown,
-
-    // don't include Lock, Shift, Alt, Super, and Ctrl -- terminals don't respond to 
-    // these by themselves
-
-    // don't expose NumPad keys separately: terminals don't know the difference
-    // and doing so encourages developers to make UIs that won't work on most laptops
-}
-
-impl Keycode {
-    fn needs_correlation(&self) -> bool {
-        use Keycode::*;
-        match self {
-            F1 | F2 | F3 | F4 | F5 | F6 | F7 | F8 | F9 | F10 | F11 | F12 | F13 | F14 | F15 => false,
-            Down | Left | Right | Up => false,
-            Backspace | Delete | End | Enter => false,
-            Escape  => false,
-            Home | Insert | Menu => false,
-            PageDown | PageUp => false,
-            Pause => false,
-            Tab => false,
-            Unknown => false,
-            _ => true,
-        }
-    }
-}
-
 
 fn minifb_provides(mmk: ModalMinifbKey, utf: char, desperate: bool) -> bool {
     if !desperate {
@@ -338,7 +268,7 @@ fn most_likely_keycode(c: char) -> Option<Keycode> {
     })
 }
 
-fn censor_unhelpful_features(mut key: ChiroptermKey) -> ChiroptermKey {
+fn censor_unhelpful_features(mut key: KeyEvent) -> KeyEvent {
     // This just deals with a bunch of miscellaneous things bad input systems might do
     if let Some('\r') | Some('\n') | Some('\t') = key.char {
         key.char = None;
