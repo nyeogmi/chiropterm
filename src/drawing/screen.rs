@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use crate::aliases::*;
 use crate::formatting::FSem;
-use crate::rendering::{CellContent, SemanticContent};
+use crate::rendering::{CellContent, Interactor, SemanticContent};
 
 use gridd_euclid::{Grid, PointsIn};
 
@@ -11,7 +11,7 @@ use super::brush::Brushable;
 pub struct Screen {
     pub(crate) cells: Grid<Cell<CellContent>, CellSpace>,  // pub(crate) so the renderer can access this directly
     pub(crate) bg: u8,
-    pub(crate) fg: u8
+    pub(crate) fg: u8,
 }
 
 impl Screen {
@@ -19,7 +19,7 @@ impl Screen {
         Screen { bg, fg, cells: Grid::new(
             rect(0, 0, 0, 0), 
             || Cell::new(CellContent {
-                bg, fg, sem: SemanticContent::Blank,
+                bg, fg, sem: SemanticContent::Blank, interactor: Interactor::none()
             })
         )}
     }
@@ -31,6 +31,7 @@ impl Screen {
                 c.bg = self.bg;
                 c.fg = self.fg;
                 c.sem = SemanticContent::Blank;
+                c.interactor = Interactor::none();
                 c
             });
         }
@@ -42,7 +43,7 @@ impl Screen {
         self.cells.resize(
             rect(0, 0, sz.width, sz.height), 
             || Cell::new(CellContent {
-                bg, fg, sem: SemanticContent::Blank,
+                bg, fg, sem: SemanticContent::Blank, interactor: Interactor::none(),
             })
         )
     }
@@ -61,6 +62,7 @@ impl Brushable for Screen {
             if let Some(bg) = f.bg { c.bg = bg; }
             if let Some(fg) = f.fg { c.fg = fg; }
             if let Some(sprite) = f.sem { c.sem = sprite; }
+            if let Some(interactor) = f.interactor { c.interactor = interactor; }
             c
         });
     }

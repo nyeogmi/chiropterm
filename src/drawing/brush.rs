@@ -1,4 +1,4 @@
-use crate::{aliases::*, formatting::{FSem, Justification, Preformatter}, rendering::Font};
+use crate::{aliases::*, formatting::{FSem, Justification, Preformatter}, rendering::{Font, Interactor}};
 
 
 pub trait Brushable: Sized {
@@ -16,6 +16,10 @@ pub trait Brushable: Sized {
 
             fg: None,
             bg: None,
+
+            // nyeo note: by default we actually overwrite interactors that might have been created by other draw ops
+            // (why? because our text probably isn't related to their thing)
+            interactor: Some(Interactor::none()),  
         }
     }
 }
@@ -33,6 +37,7 @@ pub struct Brush<'a, B: Brushable> {
 
     fg: Option<u8>,
     bg: Option<u8>,
+    interactor: Option<Interactor>,
 }
 
 impl<'a, B: Brushable> Clone for Brush<'a, B> {
@@ -46,7 +51,8 @@ impl<'a, B: Brushable> Clone for Brush<'a, B> {
             font: self.font,
             
             fg: self.fg.clone(), 
-            bg: self.bg.clone() 
+            bg: self.bg.clone(),
+            interactor: self.interactor.clone(),
         }
     }
 }
@@ -89,6 +95,17 @@ impl<'a, B: Brushable> Brush<'a, B> {
         let mut b = self.clone();
         b.fg = Some(fg);
         b
+    }
+
+    // TODO: method to explicitly clear interactor? might be a good idea
+    pub fn interactor(&self, interactor: Interactor) -> Self {
+        let mut b = self.clone();
+        b.interactor = Some(interactor);
+        b
+    }
+
+    pub fn no_interactor(&self) -> Self {
+        self.interactor(Interactor::none())
     }
 
     pub fn putfs(&self, s: &str) -> Self {
@@ -160,6 +177,7 @@ impl<'a, B: Brushable> Brushable for Brush<'a, B> {
 
         f.bg = f.bg.or(self.bg);
         f.fg = f.fg.or(self.fg);
+        f.interactor = f.interactor.or(self.interactor);
 
         self.underlying.draw(at, f)
     }

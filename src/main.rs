@@ -18,7 +18,7 @@ use aliases::*;
 use rendering::Font;
 use window_management::IO;
 
-use crate::window_management::Keycode;
+use crate::{window_management::Keycode};
 
 fn main() {
     let mut io = IO::new(*rendering::DEFAULT_SWATCH, |_| exit(0));
@@ -27,10 +27,15 @@ fn main() {
         |io, menu| {
             let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
 
+            let interactor = menu.interactor(Keycode::B, |k| {
+                println!("hit {:?}", k)
+            });
+            println!("interactor: {:?}", interactor);
+
             let b = content_box.at(point2(0, 0))
             .bg(10).fg(15)
             .font(Font::Set).putfs("WELCOME TO ")
-            .bg(2).font(Font::Fat).putfs("BATCON")
+            .bg(2).font(Font::Fat).interactor(interactor).putfs("BATCON").no_interactor()
             .font(Font::Small).putfs("TM").font(Font::Fat); // fat again (so the newline will work)
 
             b.bg(8).fg(7).on_newline().font(Font::Normal).putfs(concat!(
@@ -39,9 +44,11 @@ fn main() {
                 "bats and the bats and the bats",
             ));
 
+            /*
             menu.on(Keycode::A, |k| {
                 println!("hit {:?}", k)
             })
+            */
         },
     );
     

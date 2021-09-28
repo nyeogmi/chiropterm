@@ -166,12 +166,25 @@ impl IO {
                 continue;  // try again
             }
 
+            // redraw (virtually)
+            self.screen.resize(aspect.term_size.cast());
+            let needs_virtual_redraw = iteration == 0 || aspect_changed;
+
+            if needs_virtual_redraw {
+                self.screen.clear();
+                (evt.on_redraw)(self);
+            }
+
+            // check events
             if let Resume::Now = (evt.on_frame)(self) { return }
 
             let win = self.window.as_mut().unwrap();
             self.keyboard.add_pressed_keys(win);
             self.keyboard.correlate();
-            self.mouse.update(aspect, win);
+            let cells = &self.screen.cells;
+            self.mouse.update(aspect, win, |xy| 
+                cells.get(xy).map(|i| i.get().interactor)
+            );
 
             while let Some(keypress) = self.keyboard.getch() {
                 if let Resume::Now = (evt.on_input)(self, InputEvent::Keyboard(keypress)) { return }
@@ -179,14 +192,6 @@ impl IO {
 
             while let Some(mouse_evt) = self.mouse.getch() {
                 if let Resume::Now = (evt.on_input)(self, InputEvent::Mouse(mouse_evt)) { return }
-            }
-
-            self.screen.resize(aspect.term_size.cast());
-            let needs_virtual_redraw = iteration == 0 || aspect_changed;
-
-            if needs_virtual_redraw {
-                self.screen.clear();
-                (evt.on_redraw)(self);
             }
 
             let needs_physical_redraw = iteration == 0 || aspect_changed || window_changed || needs_virtual_redraw;

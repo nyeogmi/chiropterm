@@ -1,4 +1,4 @@
-use crate::aliases::CellPoint;
+use crate::{aliases::CellPoint, rendering::Interactor};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum InputEvent {
@@ -8,8 +8,8 @@ pub enum InputEvent {
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum MouseEvent {
-    Click(MouseButton, CellPoint),
-    Up(MouseButton, CellPoint),
+    Click(MouseButton, CellPoint, Option<Interactor>),
+    Up(MouseButton, CellPoint, Option<Interactor>),
     // wheel, dragging
 }
 
