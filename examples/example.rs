@@ -18,19 +18,14 @@ fn main() {
     );
 
     io.menu(
-        |io, menu| {
+        |out, menu| {
             let ramp_bg = Purple;
             let ramp_fg = Yellow;
 
-            let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
+            let content_box = out.brush().region(out.rect().inflate(-2, -2));
 
             content_box.fill(FSem::new().bg(ramp_bg[1]));
-            content_box.bevel_bottom(ramp_bg[3]);
-            content_box.bevel_right(ramp_bg[3]);
-            /*
-            content_box.bevel_top(ramp_bg[0]);
-            content_box.bevel_left(ramp_bg[0]);
-            */
+            content_box.bevel_w95_sleek(ramp_bg[0], ramp_bg[3]);
 
             let interactor_one = menu.on(Keycode::B, |k| {
                 println!("hit (1) {:?}", k)
@@ -56,8 +51,8 @@ fn main() {
     
     io.sleep(
         1.0,
-        |io| {
-            let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
+        |out| {
+            let content_box = out.brush().region(out.rect().inflate(-2, -2));
 
             content_box.at(point2(0, 0))
             .bg(10).fg(15)

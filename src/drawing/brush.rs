@@ -177,6 +177,20 @@ impl <'a, B: Brushable> Brush<'a, B> {
         }
     }
 
+    pub fn bevel_w95(&self, top_left: u8, bottom_right: u8) {
+        // shorthand for w95-style bevels
+        self.bevel_top(top_left);
+        self.bevel_left(top_left);
+        self.bevel_right(bottom_right);
+        self.bevel_bottom(bottom_right);
+    }
+
+    pub fn bevel_w95_sleek(&self, left: u8, right: u8) {
+        // w95-style bevels with no top or bottom
+        self.bevel_left(left);
+        self.bevel_right(right);
+    }
+
     pub fn bevel_top(&self, color: u8) {
         if self.rect.height() == 0 { return; }
 

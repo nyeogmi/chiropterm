@@ -36,7 +36,7 @@ pub struct IO {
     // renderer state
     buffer: Vec<u32>,
     swatch: Swatch,
-    pub screen: Screen,  // TODO: Make private again later
+    screen: Screen,  // TODO: Make private again later
 
     // evt loop default hooks
     default_on_exit: fn(&mut IO),
@@ -105,10 +105,10 @@ impl IO {
         aspect
     }
 
-    pub fn getch(&mut self, on_redraw: impl FnMut(&mut IO)) -> InputEvent {
+    pub fn getch(&mut self, mut on_redraw: impl FnMut(&Screen)) -> InputEvent {
         let mut inp = None;
         self.wait(EventLoop {
-            on_redraw: Box::new(on_redraw),
+            on_redraw: Box::new(|io| { on_redraw(&io.screen) }),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, i| { inp = Some(i); Resume::Now }),
@@ -117,10 +117,10 @@ impl IO {
         inp.unwrap()
     }
 
-    pub fn menu(&mut self, mut on_redraw: impl FnMut(&mut IO, &Menu<'_>)) {
+    pub fn menu(&mut self, mut on_redraw: impl FnMut(&Screen, &Menu<'_>)) {
         let menu = Menu::new();
         self.wait(EventLoop {
-            on_redraw: Box::new(|io| { on_redraw(io, &menu) }),
+            on_redraw: Box::new(|io| { on_redraw(&io.screen, &menu) }),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, i| { 
@@ -132,11 +132,11 @@ impl IO {
     }
 
 
-    pub fn sleep(&mut self, time: f64, on_redraw: impl FnMut(&mut IO)) {
+    pub fn sleep(&mut self, time: f64, mut on_redraw: impl FnMut(&Screen)) {
         // TODO: Clear clicks and keys if we're sleeping
         let mut frame = 0;
         self.wait(EventLoop {
-            on_redraw: Box::new(on_redraw),
+            on_redraw: Box::new(|io| on_redraw(&io.screen)),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, __| Resume::NotYet),
