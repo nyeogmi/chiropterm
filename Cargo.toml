@@ -6,7 +6,7 @@ description = "bat-themed fake terminal in the style of libtcod"
 readme = "README.md"
 homepage = "https://github.com/nyeogmi/chiropterm"
 repository = "https://github.com/nyeogmi/chiropterm"
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 # TODO, keywords, categories?
 edition = "2018"
 
