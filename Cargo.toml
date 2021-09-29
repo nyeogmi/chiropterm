@@ -1,6 +1,6 @@
 [package]
 name = "chiropterm"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Nyeogmi <economicsbat@gmail.com>"]
 description = "bat-themed fake terminal in the style of libtcod"
 readme = "README.md"
@@ -16,7 +16,7 @@ edition = "2018"
 lazy_static = "1.4"
 minifb = "0.19.3"
 euclid = "0.22.6"
-gridd-euclid = "0.1.0"
+gridd-euclid = "0.1.3"
 
 [[example]]
 name = "example"
