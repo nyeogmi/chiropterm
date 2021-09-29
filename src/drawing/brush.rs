@@ -1,15 +1,17 @@
 use crate::{aliases::*, formatting::{FSem, Justification, Preformatter}, rendering::{Font, Interactor}};
 
+use gridd_euclid::PointsIn;
+
 
 pub trait Brushable: Sized {
     fn draw(&self, at: CellPoint, f: FSem);
     // TODO: "set cursor" function, can be a no op for types without a cursor
 
-    fn brush(&self) -> Brush<'_, Self> {
+    fn brush_at(&self, rect: CellRect) -> Brush<'_, Self> {
         Brush { 
             underlying: self,
-            rect: None,
-            clip: None,
+            rect,
+            clip: rect,
             cursor_offset: CellVector::zero(),
             cursor: CellPoint::zero(),
             font: Font::Normal,
@@ -29,8 +31,8 @@ pub struct Brush<'a, B: Brushable> {
     // NYEO NOTE: `rect` is the bounds that the outside world sees
     // `clip` is an inner set of boundaries enforced on the underlying object, 
     // in the underlying object's coord system
-    rect: Option<CellRect>,
-    clip: Option<CellRect>,
+    rect: CellRect,
+    clip: CellRect,
     cursor_offset: CellVector,
     pub cursor: CellPoint, 
     font: Font,
@@ -117,16 +119,11 @@ impl<'a, B: Brushable> Brush<'a, B> {
 
         let font_width = self.font.char_size().width;
 
-        if let Some(b) = b.rect {
-            let first_width_cells = (b.max_x() - self.cursor.x).max(0);
-            let next_width_cells = b.size.width;
+        let first_width_cells = (b.rect.max_x() - self.cursor.x).max(0);
+        let next_width_cells = b.rect.size.width;
 
-            first_width_chars = Some((first_width_cells / font_width) as usize);
-            next_width_chars = Some((next_width_cells / font_width) as usize);
-        } else {
-            first_width_chars = None;
-            next_width_chars = None;
-        }
+        first_width_chars = Some((first_width_cells / font_width) as usize);
+        next_width_chars = Some((next_width_cells / font_width) as usize);
 
         let pre = Preformatter {
             font: self.font,
@@ -140,12 +137,7 @@ impl<'a, B: Brushable> Brush<'a, B> {
 
     pub fn clipped(&self, r: CellRect) -> Self {
         let mut b = self.clone();
-        b.clip = Some(match b.clip {
-            Some(clip) => 
-                clip.intersection(&r.translate(b.cursor_offset)).unwrap_or(rect(0, 0, 0, 0)),
-            None => 
-                r.translate(b.cursor_offset),
-        });
+        b.clip = b.clip.intersection(&r.translate(b.cursor_offset)).unwrap_or(rect(0, 0, 0, 0));
         b
     }
 
@@ -153,14 +145,9 @@ impl<'a, B: Brushable> Brush<'a, B> {
     // (and therefore visible to the outside world)
     pub fn region(&self, r: CellRect) -> Self {
         let mut b = self.clone();
-        b.clip = Some(match b.clip {
-            Some(clip) => 
-                clip.intersection(&r.translate(b.cursor_offset)).unwrap_or(rect(0, 0, 0, 0)),
-            None => 
-                r.translate(b.cursor_offset),
-        });
+        b.clip = b.clip.intersection(&r.translate(b.cursor_offset)).unwrap_or(rect(0, 0, 0, 0));
         b.cursor_offset = r.origin.to_vector();
-        b.rect = Some(CellRect::new(CellPoint::zero(), r.size));
+        b.rect = CellRect::new(CellPoint::zero(), r.size);
         b
     }
 }
@@ -169,10 +156,8 @@ impl<'a, B: Brushable> Brushable for Brush<'a, B> {
     fn draw(&self, mut at: CellPoint, mut f: FSem) {
         at += self.cursor_offset;
 
-        if let Some(cl) = self.clip {
-            if !cl.contains(at) { 
-                return; 
-            }
+        if !self.clip.contains(at) { 
+            return; 
         }
 
         f.bg = f.bg.or(self.bg);
@@ -180,5 +165,59 @@ impl<'a, B: Brushable> Brushable for Brush<'a, B> {
         f.interactor = f.interactor.or(self.interactor);
 
         self.underlying.draw(at, f)
+    }
+}
+
+
+// more drawing ops!
+impl <'a, B: Brushable> Brush<'a, B> {
+    pub fn fill(&self, f: FSem) {
+        for i in isize::points_in(self.rect) {
+            self.draw(i, f)
+        }
+    }
+
+    pub fn bevel_top(&self, color: u8) {
+        if self.rect.height() == 0 { return; }
+
+        let mut sem = FSem::new();
+        sem.bevels.top = Some(color);
+
+        for x in self.rect.min_x()..self.rect.max_x() {
+            self.draw(point2(x, self.rect.min_y()), sem);
+        }
+    }
+
+    pub fn bevel_left(&self, color: u8) {
+        if self.rect.width() == 0 { return; }
+
+        let mut sem = FSem::new();
+        sem.bevels.left = Some(color);
+
+        for y in self.rect.min_y()..self.rect.max_y() {
+            self.draw(point2(self.rect.min_x(), y), sem);
+        }
+    }
+
+    pub fn bevel_right(&self, color: u8) {
+        if self.rect.width() == 0 { return; }
+
+        let mut sem = FSem::new();
+        sem.bevels.right = Some(color);
+
+        for y in self.rect.min_y()..self.rect.max_y() {
+            self.draw(point2(self.rect.max_x() - 1, y), sem);
+        }
+    }
+
+    pub fn bevel_bottom(&self, color: u8) {
+        if self.rect.height() == 0 { return; }
+
+        let mut sem = FSem::new();
+        sem.bevels.bottom = Some(color);
+
+        for x in self.rect.min_x()..self.rect.max_x() {
+            self.draw(point2(x, self.rect.max_y() - 1), sem);
+        }
     }
 }

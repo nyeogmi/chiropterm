@@ -2,10 +2,11 @@ use std::cell::Cell;
 
 use crate::aliases::*;
 use crate::formatting::FSem;
-use crate::rendering::{CellContent, Interactor, SemanticContent};
+use crate::rendering::{Bevels, CellContent, Interactor, SemanticContent};
 
 use gridd_euclid::{Grid, PointsIn};
 
+use super::Brush;
 use super::brush::Brushable;
 
 pub struct Screen {
@@ -19,7 +20,9 @@ impl Screen {
         Screen { bg, fg, cells: Grid::new(
             rect(0, 0, 0, 0), 
             || Cell::new(CellContent {
-                bg, fg, sem: SemanticContent::Blank, interactor: Interactor::none()
+                bg, fg, 
+                bevels: Bevels::new(),
+                sem: SemanticContent::Blank, interactor: Interactor::none(), 
             })
         )}
     }
@@ -30,6 +33,7 @@ impl Screen {
             cell.update(|mut c| {
                 c.bg = self.bg;
                 c.fg = self.fg;
+                c.bevels = Bevels::new();
                 c.sem = SemanticContent::Blank;
                 c.interactor = Interactor::none();
                 c
@@ -43,7 +47,9 @@ impl Screen {
         self.cells.resize(
             rect(0, 0, sz.width, sz.height), 
             || Cell::new(CellContent {
-                bg, fg, sem: SemanticContent::Blank, interactor: Interactor::none(),
+                bg, fg, 
+                sem: SemanticContent::Blank, interactor: Interactor::none(),
+                bevels: Bevels::new(),
             })
         )
     }
@@ -61,9 +67,16 @@ impl Brushable for Screen {
         cell.update(|mut c| {
             if let Some(bg) = f.bg { c.bg = bg; }
             if let Some(fg) = f.fg { c.fg = fg; }
+            f.bevels.update(&mut c.bevels);
             if let Some(sprite) = f.sem { c.sem = sprite; }
             if let Some(interactor) = f.interactor { c.interactor = interactor; }
             c
         });
+    }
+}
+
+impl Screen {
+    pub fn brush(&self) -> Brush<'_, Self> {
+        self.brush_at(self.rect())
     }
 }

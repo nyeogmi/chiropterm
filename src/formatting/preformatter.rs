@@ -3,7 +3,7 @@ use euclid::point2;
 use crate::{aliases::{CellPoint}, cp437, drawing::{Brushable}, rendering::Font};
 use crate::drawing::Brush;
 
-use super::{FChar, FString};
+use super::{FChar, FString, fstring::FBevels};
 
 pub struct Preformatter {
     pub font: Font,
@@ -254,7 +254,7 @@ impl Preformatter {
                     fg = arg_value
                 }
             } else {
-                fs.push(FChar { bg, fg, sprite: Some(cp437::encode_char(c) as u16), interactor: None });
+                fs.push(FChar { bg, fg, sprite: Some(cp437::encode_char(c) as u16), interactor: None, bevels: FBevels::new() });
             }
         }
     }

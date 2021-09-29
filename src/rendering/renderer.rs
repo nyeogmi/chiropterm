@@ -39,7 +39,19 @@ impl<'a> Render<'a> {
 
             tile.render(
                 self.buffer, term_xy.x, term_xy.y, self.aspect.term_size.width, 
-                self.swatch.get(fg), self.swatch.get(bg)
+                self.swatch.get(fg), self.swatch.get(bg), 
+
+                !(interacting_here || content.bevels.top == 255), 
+                self.swatch.get(content.bevels.top),
+
+                !(interacting_here || content.bevels.left == 255), 
+                self.swatch.get(content.bevels.left),
+
+                !(interacting_here || content.bevels.right == 255), 
+                self.swatch.get(content.bevels.right),
+
+                !(interacting_here || content.bevels.bottom == 255), 
+                self.swatch.get(content.bevels.bottom),
             );
         }
     }

@@ -6,7 +6,7 @@ mod sprite;
 pub mod stdcolors;
 mod swatch;
 
-pub use cell::{CellContent, Interactor, SemanticContent};
+pub use cell::{Bevels, CellContent, Interactor, SemanticContent};
 pub use font::Font;
 pub use renderer::Render;
 pub use swatch::{DEFAULT_SWATCH, Swatch};

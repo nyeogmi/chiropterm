@@ -18,7 +18,7 @@ use aliases::*;
 use rendering::Font;
 use window_management::IO;
 
-use crate::{window_management::Keycode};
+use crate::{formatting::FSem, window_management::Keycode};
 use rendering::stdcolors;
 
 fn main() {
@@ -28,7 +28,18 @@ fn main() {
 
     io.menu(
         |io, menu| {
+            let ramp_bg = Purple;
+            let ramp_fg = Yellow;
+
             let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
+
+            content_box.fill(FSem::new().bg(ramp_bg[1]));
+            content_box.bevel_bottom(ramp_bg[3]);
+            content_box.bevel_right(ramp_bg[3]);
+            /*
+            content_box.bevel_top(ramp_bg[0]);
+            content_box.bevel_left(ramp_bg[0]);
+            */
 
             let interactor_one = menu.on(Keycode::B, |k| {
                 println!("hit (1) {:?}", k)
@@ -39,12 +50,12 @@ fn main() {
             });
 
             let b = content_box.at(point2(0, 0))
-            .bg(Blue0).fg(Yellow1)
+            .bg(ramp_bg[2]).fg(ramp_fg[2])
             .font(Font::Set).putfs("WELCOME TO ")
-            .bg(Purple1).font(Font::Fat).interactor(interactor_one).putfs("BATCON").no_interactor()
+            .bg(ramp_bg[3]).font(Font::Fat).interactor(interactor_one).putfs("BATCON").no_interactor()
             .font(Font::Small).putfs("TM").font(Font::Fat); // fat again (so the newline will work)
 
-            b.bg(DkGray0).fg(LtGray2).on_newline().font(Font::Normal).interactor(interactor_two).putfs(concat!(
+            b.bg(ramp_bg[0]).fg(ramp_fg[3]).on_newline().font(Font::Normal).interactor(interactor_two).putfs(concat!(
                 "the premier convention for all the bats ",
                 "and all the big bats and all the little ",
                 "bats and the bats and the bats",

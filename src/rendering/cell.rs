@@ -2,10 +2,13 @@
 pub struct CellContent {
     pub fg: u8,
     pub bg: u8,
+
+    // 255: no bevel
+    pub bevels: Bevels,
+
     pub sem: SemanticContent,
     pub interactor: Interactor,
 }
-
 #[derive(Clone, Copy, Debug)]
 pub enum SemanticContent {
     Blank,
@@ -46,4 +49,25 @@ impl Interactor {
     }
 
     // TODO: Create one with a specific ID
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Bevels {
+    // 255: no bevel
+    pub top: u8,
+    pub left: u8,
+    pub right: u8,
+    pub bottom: u8,
+}
+
+impl Bevels {
+    pub fn new() -> Bevels {
+        Bevels { 
+            top: 255,
+            left: 255,
+            right: 255,
+            bottom: 255,
+        }
+    }
+
 }
