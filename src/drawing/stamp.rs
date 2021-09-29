@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::{BTreeMap, btree_map::Entry}};
+use std::{cell::{Cell, RefCell}, collections::{BTreeMap, btree_map::Entry}};
 
 use crate::{aliases::*, formatting::FSem};
 
@@ -7,7 +7,7 @@ use super::Brushable;
 pub struct Stamp {
     content: RefCell<BTreeMap<(isize, isize), FSem>>,
     pub cursor_point: Option<CellPoint>,
-    bounds: Option<CellRect>,  // TODO: Update these
+    bounds: Cell<Option<CellRect>>,  // TODO: Update these
 }
 
 impl Stamp {
@@ -16,7 +16,7 @@ impl Stamp {
         Stamp { 
             content: RefCell::new(BTreeMap::new()), 
             cursor_point: cursor_point, 
-            bounds: None,
+            bounds: Cell::new(None),
         }
     }
 
@@ -37,6 +37,24 @@ impl Brushable for Stamp {
             }
             Entry::Vacant(v) => { 
                 v.insert(f);
+                self.bounds.replace(match self.bounds.get() {
+                    None => Some(rect(at.x, at.y, 1, 1)),
+                    Some(mut b) => {
+                        if at.x < b.min_x() {
+                            b = rect(at.x, b.min_y(), b.max_x() - at.x, b.height())
+                        }
+                        if at.x > b.max_x() {
+                            b = rect(b.min_x(), b.min_y(), at.x - b.min_x() + 1, b.height())
+                        }
+                        if at.y < b.min_y() {
+                            b = rect(b.min_x(), at.y, b.width(), b.max_y() - at.y)
+                        }
+                        if at.y > b.max_y() {
+                            b = rect(b.min_x(), b.min_y(), b.width(), at.y - b.min_y() + 1)
+                        }
+                        Some(b)
+                    }
+                });
             }
         }
     }

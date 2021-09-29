@@ -5,8 +5,7 @@ use crate::window_management::Aspect;
 
 use super::{Interactor, Swatch};
 
-pub struct Render<'a> {
-    pub frame: u64,
+pub(crate) struct Render<'a> {
     pub aspect: Aspect,
     pub buffer: &'a mut Vec<u32>,
     pub swatch: Swatch,

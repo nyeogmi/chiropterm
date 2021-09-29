@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use crate::rendering::Interactor;
 
-use super::{KeyEvent, MouseButton, MouseEvent, input::{InputEvent, Keycode}};
+use super::{KeyEvent, MouseEvent, input::{InputEvent, Keycode}};
 
 // TODO: Clear all interactors in one stroke? Or uh, a sub-menu that generates the None interactor no matter what
 // You know, so you can draw a screen with all its menus disabled!

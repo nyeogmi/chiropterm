@@ -7,7 +7,7 @@ use crate::{aliases::CellPoint, rendering::Interactor};
 
 use super::{Aspect, input::MouseEvent, input::MouseButton};
 
-pub struct Mouse {
+pub(crate) struct Mouse {
     old: Option<State>,
     new: Option<State>,
     events: VecDeque<MouseEvent>,

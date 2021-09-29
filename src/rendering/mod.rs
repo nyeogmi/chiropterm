@@ -3,10 +3,10 @@ mod font;
 mod renderer;
 mod sprite;
 #[allow(non_upper_case_globals)]
-pub mod stdcolors;
+pub mod colors;
 mod swatch;
 
-pub use cell::{Bevels, CellContent, Interactor, SemanticContent};
+pub(crate) use cell::{Bevels, CellContent, Interactor, SemanticContent};
 pub use font::Font;
-pub use renderer::Render;
-pub use swatch::{DEFAULT_SWATCH, Swatch};
+pub(crate) use renderer::Render;
+pub(crate) use swatch::{DEFAULT_SWATCH, Swatch};

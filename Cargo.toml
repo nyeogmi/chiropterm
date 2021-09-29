@@ -17,3 +17,6 @@ lazy_static = "1.4"
 minifb = "0.19.3"
 euclid = "0.22.6"
 gridd-euclid = "0.1.0"
+
+[[example]]
+name = "example"

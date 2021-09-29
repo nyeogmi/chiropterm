@@ -7,19 +7,16 @@ mod mouse;
 use euclid::size2;
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-use crate::{drawing::Screen, rendering::{Interactor, Render, Swatch}, window_management::keyboard::Keyboard};
+use crate::{drawing::Screen, rendering::{self, Interactor, Render, Swatch}, window_management::keyboard::Keyboard};
 
-use self::{input::InputEvent, math::{AspectConfig, calculate_aspect, default_window_size}, menu::{Handled, Menu}, mouse::Mouse};
-pub use self::math::Aspect;
+use self::{math::{calculate_aspect, default_window_size}, mouse::Mouse};
+pub(crate) use self::math::Aspect;
 
+pub use menu::Menu;
+use menu::Handled;
+
+pub use self::math::AspectConfig;
 pub use input::*;
-
-// TODO: Is a cell 2 characters across
-const ASPECT_CONFIG: AspectConfig = AspectConfig {
-    pref_min_term_size: size2(64, 48),  // but expect ~112x60
-    pref_max_term_size: size2(256, 256),
-    cell_size: size2(8, 8),
-};
 
 const FRAMES_PER_SECOND: usize = 30;
 const TRUE_FRAME_DURATION: usize = 1660; // 600 FPS
@@ -28,6 +25,8 @@ const REDRAW_EVERY: u64 = 20;   // practically 30 FPS
 pub struct IO {
     // user vars
     frame: u64,
+    window_title: String,
+    aspect_config: AspectConfig,
 
     // io drivers
     window: Option<Window>,
@@ -57,9 +56,13 @@ enum Resume {
 }
 
 impl IO {
-    pub fn new(swatch: Swatch, default_on_exit: fn(&mut IO)) -> IO {
+    pub fn new(window_title: String, aspect_config: AspectConfig, default_on_exit: fn(&mut IO)) -> IO {
+        let swatch = *rendering::DEFAULT_SWATCH;
+
         IO { 
-            frame: 0, window: None, keyboard: Keyboard::new(), mouse: Mouse::new(),
+            frame: 0, window_title, aspect_config,
+            
+            window: None, keyboard: Keyboard::new(), mouse: Mouse::new(),
             
             buffer: vec![], swatch, screen: Screen::new(swatch.default_bg, swatch.default_fg),
             default_on_exit,
@@ -72,10 +75,10 @@ impl IO {
         opts.scale_mode = ScaleMode::Stretch;
         opts.resize = true;
 
-        let wsz = default_window_size(ASPECT_CONFIG);  
+        let wsz = default_window_size(self.aspect_config);  
 
         let mut window = Window::new(
-            "TODO: Entitle this window",
+            &self.window_title,
             wsz.width as usize, wsz.height as usize,
             opts,
         ).unwrap_or_else(|e| {
@@ -92,7 +95,7 @@ impl IO {
         let win = self.window.as_mut().unwrap();
         let (actual_w, actual_h) = win.get_size();
 
-        let aspect = calculate_aspect(ASPECT_CONFIG, size2(actual_w as u16, actual_h as u16));
+        let aspect = calculate_aspect(self.aspect_config, size2(actual_w as u16, actual_h as u16));
 
         let buf_len = aspect.buf_size.width as usize * aspect.buf_size.height as usize;
         if self.buffer.len() != buf_len {
@@ -216,7 +219,6 @@ impl IO {
         self.frame += 1;
         Render { 
             aspect, 
-            frame: self.frame, 
             buffer: &mut self.buffer, 
             swatch: self.swatch,
             screen: &self.screen,

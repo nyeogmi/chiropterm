@@ -1,27 +1,24 @@
 use std::convert::TryInto;
 
-use crate::aliases::{PixelSize};
+use crate::{aliases::{PixelSize}, constants::{CELL_X, CELL_Y}};
 
-pub struct TileSet<'a> {
+pub(crate) struct TileSet<'a> {
     pub buf: &'a [u8],
     pub overall_size: PixelSize,
 }
-
-const TILE_X: u16 = 8;
-const TILE_Y: u16 = 8;
 
 #[derive(Clone, Copy)]
 pub struct Tile(pub [u8; 8]);
 
 impl<'a> TileSet<'a> {
     pub fn tile(&self, ix: usize) -> Tile {
-        let n_tiles_x = (self.overall_size.width / TILE_X) as usize;
-        let n_tiles_y = (self.overall_size.height / TILE_Y) as usize;
+        let n_tiles_x = (self.overall_size.width / CELL_X as u16) as usize;
+        let n_tiles_y = (self.overall_size.height / CELL_Y as u16) as usize;
         let n_tiles = n_tiles_x * n_tiles_y;
 
         if ix >= n_tiles { return Tile([0; 8]) }
 
-        let value: [u8; 8] = self.buf[ix * TILE_Y as usize..(ix + 1) * TILE_Y as usize].try_into().unwrap();
+        let value: [u8; 8] = self.buf[ix * CELL_Y..(ix + 1) * CELL_Y].try_into().unwrap();
         Tile(value)
     }
 }
@@ -37,9 +34,9 @@ impl Tile {
         right_bevel: bool, right_bevel_fg: u32,
         bottom_bevel: bool, bottom_bevel_fg: u32,
     ) {
-        let real_out_x = out_x as usize * TILE_X as usize;
-        let real_out_y = out_y as usize * TILE_Y as usize;
-        let real_out_width = out_width as usize * TILE_X as usize;
+        let real_out_x = out_x as usize * CELL_X;
+        let real_out_y = out_y as usize * CELL_Y;
+        let real_out_width = out_width as usize * CELL_X;
         
         // bg of text 
         for y in [0, 1, 2, 3, 4, 5, 6, 7] {
@@ -59,7 +56,7 @@ impl Tile {
 
         if right_bevel {
             for y in [0, 1, 2, 3, 4, 5, 6, 7] {
-                out_buf[((real_out_y + y) * real_out_width + real_out_x + (TILE_X as usize - 1)) as usize] = right_bevel_fg;
+                out_buf[((real_out_y + y) * real_out_width + real_out_x + (CELL_X - 1)) as usize] = right_bevel_fg;
             }
         }
 
@@ -71,7 +68,7 @@ impl Tile {
 
         if bottom_bevel {
             for x in [0, 1, 2, 3, 4, 5, 6, 7] {
-                out_buf[((real_out_y + TILE_Y as usize - 1) * real_out_width + real_out_x + x) as usize] = bottom_bevel_fg;
+                out_buf[((real_out_y + CELL_Y - 1) * real_out_width + real_out_x + x) as usize] = bottom_bevel_fg;
             }
         }
 

@@ -6,7 +6,7 @@ use super::input::{KeyEvent, Keycode};
 
 const FRAMES_UNTIL_GIVEUP: u8 = 1; // give up on correlating utf32 characters after n frames
 
-pub struct Keyboard {
+pub(crate) struct Keyboard {
     correlator: KeyCorrelatorRef
 }
 

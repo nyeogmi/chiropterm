@@ -1,30 +1,21 @@
-#![feature(cell_update)]
-#![feature(type_alias_impl_trait)]
-extern crate minifb;
-
-#[macro_use] extern crate lazy_static;
-
-mod aliases;
-mod cp437;
-mod drawing;
-mod formatting;
-mod rendering;
-mod window_management;
-
 use std::process::exit;
 
-use drawing::Brushable;
-use aliases::*;
-use rendering::Font;
-use window_management::IO;
+use chiropterm::*;
+use euclid::*;
 
-use crate::{formatting::FSem, window_management::Keycode};
-use rendering::stdcolors;
+const ASPECT_CONFIG: AspectConfig = AspectConfig {
+    pref_min_term_size: size2(64, 48),  // but expect ~112x60
+    pref_max_term_size: size2(256, 256),
+};
 
 fn main() {
-    use stdcolors::*;
+    use colors::*;
 
-    let mut io = IO::new(*rendering::DEFAULT_SWATCH, |_| exit(0));
+    let mut io = IO::new(
+        "Chiropterm example".to_string(), 
+        ASPECT_CONFIG, 
+        |_| exit(0)
+    );
 
     io.menu(
         |io, menu| {
@@ -68,7 +59,7 @@ fn main() {
         |io| {
             let content_box = io.screen.brush().region(io.screen.rect().inflate(-2, -2));
 
-            let b = content_box.at(point2(0, 0))
+            content_box.at(point2(0, 0))
             .bg(10).fg(15)
             .font(Font::Set).putfs("PLEASE WAIT");
         }
