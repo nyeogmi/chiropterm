@@ -1,7 +1,26 @@
 from PIL import Image
 
 
-def reencode(src, dst, glyph_width_cells, glyph_height_cells):
+def reencode_swatch(src, dst):
+    bytes_list = []
+    with Image.open(src) as im:
+        assert im.width * im.height == 256
+        for y in range(im.height):
+            for x in range(im.width):
+                pix = im.getpixel((x, y))
+                if len(pix) == 4:
+                    r, g, b, a = pix
+                else:
+                    r, g, b = pix
+                bytes_list.append(r)
+                bytes_list.append(g)
+                bytes_list.append(b)
+
+    with open(dst, "wb") as bin:
+        bin.write(bytes(bytes_list))
+
+
+def reencode_font(src, dst, glyph_width_cells, glyph_height_cells):
     bits = []
     with Image.open(src) as im:
         for char_y in range(0, im.height, 8 * glyph_height_cells):  # so the bottom half of the char will end up right after the top
@@ -32,6 +51,7 @@ def reencode(src, dst, glyph_width_cells, glyph_height_cells):
 
 
 if __name__ == "__main__":
-    reencode("srcfiles/font.png", "../src/rendering/font.bin", 1, 2)
-    reencode("srcfiles/font_small.png", "../src/rendering/font_small.bin", 1, 1)
-    reencode("srcfiles/font_fat.png", "../src/rendering/font_fat.bin", 2, 2)
+    reencode_swatch("srcfiles/swatch.png", "../src/rendering/swatch.bin")
+    reencode_font("srcfiles/font.png", "../src/rendering/font.bin", 1, 2)
+    reencode_font("srcfiles/font_small.png", "../src/rendering/font_small.bin", 1, 1)
+    reencode_font("srcfiles/font_fat.png", "../src/rendering/font_fat.bin", 2, 2)
