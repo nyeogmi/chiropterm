@@ -19,8 +19,11 @@ use rendering::Font;
 use window_management::IO;
 
 use crate::{window_management::Keycode};
+use rendering::stdcolors;
 
 fn main() {
+    use stdcolors::*;
+
     let mut io = IO::new(*rendering::DEFAULT_SWATCH, |_| exit(0));
 
     io.menu(
@@ -36,12 +39,12 @@ fn main() {
             });
 
             let b = content_box.at(point2(0, 0))
-            .bg(10).fg(15)
+            .bg(Blue0).fg(Yellow1)
             .font(Font::Set).putfs("WELCOME TO ")
-            .bg(2).font(Font::Fat).interactor(interactor_one).putfs("BATCON").no_interactor()
+            .bg(Purple1).font(Font::Fat).interactor(interactor_one).putfs("BATCON").no_interactor()
             .font(Font::Small).putfs("TM").font(Font::Fat); // fat again (so the newline will work)
 
-            b.bg(8).fg(7).on_newline().font(Font::Normal).interactor(interactor_two).putfs(concat!(
+            b.bg(DkGray0).fg(LtGray2).on_newline().font(Font::Normal).interactor(interactor_two).putfs(concat!(
                 "the premier convention for all the bats ",
                 "and all the big bats and all the little ",
                 "bats and the bats and the bats",

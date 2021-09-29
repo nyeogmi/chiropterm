@@ -2,6 +2,8 @@ mod cell;
 mod font;
 mod renderer;
 mod sprite;
+#[allow(non_upper_case_globals)]
+pub mod stdcolors;
 mod swatch;
 
 pub use cell::{CellContent, Interactor, SemanticContent};
