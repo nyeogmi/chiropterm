@@ -103,6 +103,13 @@ impl<'a, T> Menu<'a, T> {
                 }
                 None
             },
+            InputEvent::Mouse(MouseEvent::Drag { start_interactor, .. }) => {
+                if let Some(ix) = start_interactor.index() {
+                    let mut hnd = self.handlers.borrow_mut();
+                    if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
+                }
+                None
+            }
             InputEvent::Mouse(_) => {
                 None
             }

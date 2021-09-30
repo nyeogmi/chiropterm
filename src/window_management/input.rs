@@ -1,3 +1,4 @@
+use enum_map::Enum;
 use crate::{CellVector, aliases::CellPoint, rendering::Interactor};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -21,7 +22,16 @@ impl InputEvent {
 pub enum MouseEvent {
     Click(MouseButton, CellPoint, Interactor),
     Up(MouseButton, CellPoint, Interactor),
-    // wheel, dragging
+    Drag { 
+        mouse_button: MouseButton, 
+        start_point: CellPoint, 
+        start_interactor: Interactor,
+        last_point: CellPoint,
+        last_interactor: Interactor,
+        now_point: CellPoint,
+        now_interactor: Interactor
+    },
+    // wheel?
 }
 
 impl MouseEvent {
@@ -31,13 +41,30 @@ impl MouseEvent {
                 MouseEvent::Click(mb, cp + vec, int),
             MouseEvent::Up(mb, cp, int) => 
                 MouseEvent::Up(mb, cp + vec, int),
+            MouseEvent::Drag {
+                mouse_button, 
+                start_point, start_interactor,
+                last_point, last_interactor,
+                now_point, now_interactor,
+            } => {
+                MouseEvent::Drag {
+                    mouse_button, 
+                    start_point: start_point + vec, start_interactor,
+                    last_point: last_point + vec, last_interactor,
+                    now_point: now_point + vec, now_interactor,
+                }
+            }
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Enum, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MouseButton {
     Left, Right
+}
+
+impl MouseButton {
+    pub const ALL: [MouseButton; 2] = [MouseButton::Left, MouseButton::Right];
 }
 
 // TODO: Add an "is_accept()" method that returns true for enter and space

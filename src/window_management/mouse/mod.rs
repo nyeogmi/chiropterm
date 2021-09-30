@@ -1,5 +1,8 @@
+mod drag;
+
 use std::collections::VecDeque;
 
+use enum_map::EnumMap;
 use euclid::{point2};
 use minifb::{MouseButton as MinifbMouseButton, MouseMode, Window};
 
@@ -7,7 +10,12 @@ use crate::{aliases::CellPoint, rendering::Interactor};
 
 use super::{Aspect, input::MouseEvent, input::MouseButton};
 
+use drag::DragMonitor;
+
+
 pub(crate) struct Mouse {
+    drag: EnumMap<MouseButton, DragMonitor>,
+
     old: Option<State>,
     new: Option<State>,
     events: VecDeque<MouseEvent>,
@@ -16,8 +24,8 @@ pub(crate) struct Mouse {
 
 #[derive(Clone, Copy)]
 struct State {
-    left: bool,
-    right: bool,
+    down: EnumMap<MouseButton, bool>,
+
     cell_xy: CellPoint,
     interactor: Interactor,
 }
@@ -26,6 +34,9 @@ struct State {
 impl Mouse {
     pub fn new() -> Mouse {
         Mouse { 
+            drag: enum_map::enum_map! {
+                _ => DragMonitor::new(),
+            },
             old: None, 
             new: None,
             events: VecDeque::new(),
@@ -37,7 +48,7 @@ impl Mouse {
     }
 
     pub fn update(&mut self, aspect: Aspect, window: &mut Window, any_interactor: impl Fn(CellPoint) -> Interactor) {
-        let current_state = Mouse::current_state(aspect, window, any_interactor);
+        let current_state = Mouse::current_state(aspect, window, &any_interactor);
 
         if let None = current_state {
             // don't bother generating events for now
@@ -48,21 +59,29 @@ impl Mouse {
         self.new = current_state;
 
         use MouseEvent::*;
-        use MouseButton::*;
         match (self.old, self.new) {
             (None, None) => {}
             (None, Some(_)) => {}
             (Some(_), None) => {}
             (Some(old), Some(new)) => {
-                if new.left && !old.left { self.events.push_back(Click(Left, new.cell_xy, new.interactor)) }
-                if !new.left && old.left { self.events.push_back(Up(Left, new.cell_xy, new.interactor)) }
-                if new.right && !old.right { self.events.push_back(Click(Right, new.cell_xy, new.interactor)) }
-                if !new.right && old.right { self.events.push_back(Up(Right, new.cell_xy, new.interactor)) }
+                for mb in MouseButton::ALL {
+                    if new.down[mb] && !old.down[mb] {
+                        self.events.push_back(Click(mb, new.cell_xy, new.interactor));
+                        self.drag[mb].down(new.cell_xy);
+                    }
+
+                    self.drag[mb].at(&mut self.events, mb, new.cell_xy, &any_interactor);
+
+                    if !new.down[mb] && old.down[mb] {
+                        self.events.push_back(Up(mb, new.cell_xy, new.interactor));
+                        self.drag[mb].up()  // TODO: Maybe just do this whenever !new.down?
+                    }
+                }
             }
         }
     }
 
-    fn current_state(aspect: Aspect, window: &mut Window, get_interactor: impl Fn(CellPoint) -> Interactor) -> Option<State> {
+    fn current_state(aspect: Aspect, window: &mut Window, get_interactor: &impl Fn(CellPoint) -> Interactor) -> Option<State> {
         // NYEO NOTE: The logic in minifb to compensate for DPI scaling is wrong.
         // This logic is correct, however.
         let mouse_pos = if let Some(mp) = window.get_unscaled_mouse_pos(MouseMode::Pass) { 
@@ -75,8 +94,10 @@ impl Mouse {
         let cell_xy = point2(mouse_x_ideal, mouse_y_ideal);
 
         Some(State { 
-            left: window.get_mouse_down(MinifbMouseButton::Left),
-            right: window.get_mouse_down(MinifbMouseButton::Right),
+            down: enum_map::enum_map![
+                MouseButton::Left => window.get_mouse_down(MinifbMouseButton::Left),
+                MouseButton::Right => window.get_mouse_down(MinifbMouseButton::Right),
+            ],
             cell_xy,
             interactor: get_interactor(cell_xy),
         })
