@@ -191,7 +191,7 @@ impl IO {
             self.keyboard.correlate();
             let cells = &self.screen.cells;
             self.mouse.update(aspect, win, |xy| 
-                cells.get(xy).map(|i| i.get().interactor).unwrap_or(Interactor::none())
+                cells.get(xy).map(|i| i.get().interactor.interactor).unwrap_or(Interactor::none())
             );
 
             while let Some(keypress) = self.keyboard.getch() {

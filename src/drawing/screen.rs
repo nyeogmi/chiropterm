@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use crate::aliases::*;
 use crate::formatting::FSem;
-use crate::rendering::{Bevels, CellContent, Interactor, SemanticContent};
+use crate::rendering::{Bevels, CellContent, Interactor, InteractorFmt, SemanticContent};
 
 use gridd_euclid::{Grid, PointsIn};
 
@@ -22,7 +22,7 @@ impl Screen {
             || Cell::new(CellContent {
                 bg, fg, 
                 bevels: Bevels::new(),
-                sem: SemanticContent::Blank, interactor: Interactor::none(), 
+                sem: SemanticContent::Blank, interactor: InteractorFmt::none(),
             })
         )}
     }
@@ -35,7 +35,7 @@ impl Screen {
                 c.fg = self.fg;
                 c.bevels = Bevels::new();
                 c.sem = SemanticContent::Blank;
-                c.interactor = Interactor::none();
+                c.interactor = InteractorFmt::none();
                 c
             });
         }
@@ -48,7 +48,7 @@ impl Screen {
             rect(0, 0, sz.width, sz.height), 
             || Cell::new(CellContent {
                 bg, fg, 
-                sem: SemanticContent::Blank, interactor: Interactor::none(),
+                sem: SemanticContent::Blank, interactor: InteractorFmt::none(),
                 bevels: Bevels::new(),
             })
         )

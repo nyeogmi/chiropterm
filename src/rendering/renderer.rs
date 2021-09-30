@@ -21,7 +21,7 @@ impl<'a> Render<'a> {
 
         for term_xy in u16::points_in(term_rect) {
             let content = self.screen.cells.get(term_xy.cast()).unwrap().get();
-            let interacting_here = if interactor == Interactor::none() { false } else { content.interactor == interactor };
+            let interacting_here = if interactor == Interactor::none() { false } else { content.interactor.interactor == interactor };
 
             let tile = super::font::eval(content.sem);
 
@@ -29,8 +29,8 @@ impl<'a> Render<'a> {
             let bg: u8;
             if interacting_here {
                 // flash!
-                fg = content.bg;
-                bg = content.fg;
+                fg = if content.interactor.fg == 255 { content.bg } else { content.interactor.fg };
+                bg = if content.interactor.bg == 255 { content.fg } else { content.interactor.bg };
             } else {
                 fg = content.fg;
                 bg = content.bg;
@@ -38,7 +38,7 @@ impl<'a> Render<'a> {
 
             tile.render(
                 self.buffer, term_xy.x, term_xy.y, self.aspect.term_size.width, 
-                self.swatch.get(fg), self.swatch.get(bg), 
+                self.swatch.get(bg), self.swatch.get(fg), 
 
                 !(interacting_here || content.bevels.top == 255), 
                 self.swatch.get(content.bevels.top),

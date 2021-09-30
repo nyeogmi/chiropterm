@@ -1,4 +1,4 @@
-use crate::{aliases::*, formatting::{FSem, Justification, Preformatter}, rendering::{Font, Interactor}};
+use crate::{aliases::*, formatting::{FSem, Justification, Preformatter}, rendering::{Font, Interactor, InteractorFmt}};
 
 use gridd_euclid::PointsIn;
 
@@ -25,7 +25,7 @@ pub trait Brushable: Sized {
 
             // nyeo note: by default we actually overwrite interactors that might have been created by other draw ops
             // (why? because our text probably isn't related to their thing)
-            interactor: Some(Interactor::none()),  
+            interactor: Some(InteractorFmt::none()),  
         }
     }
 }
@@ -43,7 +43,7 @@ pub struct Brush<'a, B: Brushable> {
 
     fg: Option<u8>,
     bg: Option<u8>,
-    interactor: Option<Interactor>,
+    interactor: Option<InteractorFmt>,
 }
 
 impl<'a, B: Brushable> Clone for Brush<'a, B> {
@@ -71,8 +71,8 @@ impl<'a, B: Brushable> Brush<'a, B> {
     }
 
     pub fn rect(&self) -> CellRect { self.rect }
-    pub fn clip(&self) -> CellRect { self.clip }  // Use this for debugging, mostly
-    pub fn cursor_offset(&self) -> CellVector { self.cursor_offset }  // Use this for debugging, mostly
+    pub fn clip(&self) -> CellRect { self.clip } 
+    pub fn cursor_offset(&self) -> CellVector { self.cursor_offset }  
 
     pub fn shift(&self, amt: CellVector) -> Self {
         let mut b = self.clone();
@@ -108,14 +108,16 @@ impl<'a, B: Brushable> Brush<'a, B> {
     }
 
     // TODO: method to explicitly clear interactor? might be a good idea
-    pub fn interactor(&self, interactor: Interactor) -> Self {
+    pub fn interactor(&self, interactor: Interactor, bg: u8, fg: u8) -> Self {
         let mut b = self.clone();
-        b.interactor = Some(interactor);
+        b.interactor = Some(InteractorFmt { interactor, bg, fg });
         b
     }
 
     pub fn no_interactor(&self) -> Self {
-        self.interactor(Interactor::none())
+        let mut b = self.clone();
+        b.interactor = Some(InteractorFmt::none());
+        b
     }
 
     pub fn putfs(&self, s: &str) -> Self {

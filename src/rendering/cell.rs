@@ -1,14 +1,15 @@
 #[derive(Clone, Copy, Debug)]
 pub struct CellContent {
-    pub fg: u8,
     pub bg: u8,
+    pub fg: u8,
 
     // 255: no bevel
     pub bevels: Bevels,
 
     pub sem: SemanticContent,
-    pub interactor: Interactor,
+    pub interactor: InteractorFmt, // interactor, mouseover color
 }
+
 #[derive(Clone, Copy, Debug)]
 pub enum SemanticContent {
     Blank,
@@ -50,6 +51,24 @@ impl Interactor {
 
     // TODO: Create one with a specific ID
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct InteractorFmt {
+    pub interactor: Interactor,
+    pub bg: u8,
+    pub fg: u8,
+}
+
+impl InteractorFmt {
+    pub fn none() -> InteractorFmt { 
+        InteractorFmt {
+            interactor: Interactor::none(),
+            fg: 255,
+            bg: 255,
+        }
+    }
+}
+
 
 #[derive(Clone, Copy, Debug)]
 pub struct Bevels {

@@ -1,4 +1,4 @@
-use crate::rendering::{Bevels, Interactor, SemanticContent};
+use crate::rendering::{Bevels, Interactor, InteractorFmt, SemanticContent};
 
 pub struct FString(pub Vec<FChar>);
 
@@ -7,7 +7,7 @@ pub struct FChar {
     pub sprite: Option<u16>,
     pub bg: Option<u8>,
     pub fg: Option<u8>,
-    pub interactor: Option<Interactor>,
+    pub interactor: Option<InteractorFmt>,
     pub bevels: FBevels,
 }
 
@@ -28,7 +28,7 @@ pub struct FSem {
     pub sem: Option<SemanticContent>,
     pub bg: Option<u8>,
     pub fg: Option<u8>,
-    pub interactor: Option<Interactor>, // if None, then don't _change_ the interactor
+    pub interactor: Option<InteractorFmt>, // if None, then don't _change_ the interactor
     pub bevels: FBevels,
 }
 
@@ -68,8 +68,8 @@ impl FSem {
         self
     }
 
-    pub fn interactor(mut self, interactor: Interactor) -> FSem {
-        self.interactor = Some(interactor);
+    pub fn interactor(mut self, interactor: Interactor, bg: u8, fg: u8) -> FSem {
+        self.interactor = Some(InteractorFmt { interactor, bg, fg });
         self
     }
 

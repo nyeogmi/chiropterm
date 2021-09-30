@@ -38,10 +38,10 @@ fn main() {
             let b = content_box.at(point2(0, 0))
             .bg(ramp_bg[2]).fg(ramp_fg[2])
             .font(Font::Set).putfs("WELCOME TO ")
-            .bg(ramp_bg[3]).font(Font::Fat).interactor(interactor_one).putfs("BATCON").no_interactor()
+            .bg(ramp_bg[3]).font(Font::Fat).interactor(interactor_one, ramp_fg[2], ramp_bg[3]).putfs("BATCON").no_interactor()
             .font(Font::Small).putfs("TM").font(Font::Fat); // fat again (so the newline will work)
 
-            b.bg(ramp_bg[0]).fg(ramp_fg[3]).on_newline().font(Font::Normal).interactor(interactor_two).putfs(concat!(
+            b.bg(ramp_bg[0]).fg(ramp_fg[3]).on_newline().font(Font::Normal).interactor(interactor_two, ramp_fg[3], ramp_bg[0]).putfs(concat!(
                 "the premier convention for all the bats ",
                 "and all the big bats and all the little ",
                 "bats and the bats and the bats",

@@ -28,14 +28,14 @@ impl Tile {
         &self, 
         out_buf: &mut Vec<u32>, 
         out_x: u16, out_y: u16, out_width: u16, 
-        fg: u32, bg: u32,
+        bg: u32, fg: u32,
         top_bevel: bool, top_bevel_fg: u32,
         left_bevel: bool, left_bevel_fg: u32,
         right_bevel: bool, right_bevel_fg: u32,
         bottom_bevel: bool, bottom_bevel_fg: u32,
     ) {
         if !(top_bevel || left_bevel || right_bevel || bottom_bevel) {
-            return self.render_fast(out_buf, out_x, out_y, out_width, fg, bg);
+            return self.render_fast(out_buf, out_x, out_y, out_width, bg, fg);
         }
 
         let real_out_x = out_x as usize * CELL_X;
@@ -90,7 +90,7 @@ impl Tile {
         &self, 
         out_buf: &mut Vec<u32>, 
         out_x: u16, out_y: u16, out_width: u16, 
-        fg: u32, bg: u32
+        bg: u32, fg: u32
     ) {
         let real_out_x = out_x as usize * CELL_X;
         let real_out_y = out_y as usize * CELL_Y;

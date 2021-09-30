@@ -6,6 +6,17 @@ pub enum InputEvent {
     Keyboard(KeyEvent),
 }
 
+impl InputEvent {
+    pub fn offset(&self, vec: CellVector) -> InputEvent {
+        use InputEvent::*;
+
+        match self {
+            Mouse(me) => Mouse(me.offset(vec)),
+            Keyboard(kb) => Keyboard(*kb),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum MouseEvent {
     Click(MouseButton, CellPoint, Interactor),
