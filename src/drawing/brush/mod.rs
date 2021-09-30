@@ -1,7 +1,5 @@
 use crate::{aliases::*, formatting::{FSem, Justification, Preformatter}, rendering::{Font, Interactor, InteractorFmt}};
 
-use gridd_euclid::PointsIn;
-
 mod bevel;
 mod fill;
 mod split;

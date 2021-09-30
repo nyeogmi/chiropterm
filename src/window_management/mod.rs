@@ -116,15 +116,15 @@ impl IO {
         inp.unwrap()
     }
 
-    pub fn menu(&mut self, on_redraw: impl FnMut(&Screen, &Menu<'_, ()>)) -> () {
+    pub fn menu<'draw>(&mut self, on_redraw: impl 'draw+FnMut(&Screen, Menu<'draw, ()>)) -> () {
         self.internal_menu(on_redraw)
     }
 
-    pub fn internal_menu<T>(&mut self, mut on_redraw: impl FnMut(&Screen, &Menu<T>)) -> T {
+    pub fn internal_menu<'draw, T>(&mut self, mut on_redraw: impl 'draw+FnMut(&Screen, Menu<'draw, T>)) -> T {
         let menu = Menu::new();
         let mut cmd = None;
         self.wait(EventLoop {
-            on_redraw: Box::new(|io| { on_redraw(&io.screen, &menu) }),
+            on_redraw: Box::new(|io| { on_redraw(&io.screen, menu.share()) }),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, i| { 

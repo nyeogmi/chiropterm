@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::rendering::Interactor;
 
@@ -8,14 +8,50 @@ use super::{KeyEvent, MouseEvent, input::{InputEvent, Keycode}};
 // You know, so you can draw a screen with all its menus disabled!
 
 pub struct Menu<'a, T> {
-    handlers: RefCell<Vec<Handler<'a, T>>>,
-    key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
-    // TODO: Key handlers again
+    state: Rc<MenuState<'a, T>>,
 }
 
 impl<'a, T> Menu<'a, T> {
     pub fn new() -> Menu<'a, T> {
         Menu {
+            state: Rc::new(MenuState::new())
+        }
+    }
+
+    pub fn share(&self) -> Menu<'a, T> {
+        Menu { state: self.state.clone() }
+    }
+
+    pub fn on(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> T) -> Interactor {
+        self.state.on(k, cb)
+    }
+
+    pub fn on_key(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> T) {
+        self.state.on_key(k, cb)
+    }
+
+    pub fn on_click(&self, cb: impl 'a+FnMut(MouseEvent) -> T) -> Interactor {
+        self.state.on_click(cb)
+    }
+
+    pub fn on_text(&self, cb: impl 'a+FnMut(char) -> T) {
+        self.state.on_text(cb)
+    }
+
+    pub(crate) fn handle(&self, i: InputEvent) -> Option<T> {
+        self.state.handle(i)
+    }
+}
+
+pub struct MenuState<'a, T> {
+    handlers: RefCell<Vec<Handler<'a, T>>>,
+    key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
+    // TODO: Key handlers again
+}
+
+impl<'a, T> MenuState<'a, T> {
+    pub fn new() -> MenuState<'a, T> {
+        MenuState {
             handlers: RefCell::new(vec![]),
             key_recognizers: RefCell::new(vec![]),
         }

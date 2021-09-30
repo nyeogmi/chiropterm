@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use crate::aliases::*;
 use crate::formatting::FSem;
-use crate::rendering::{Bevels, CellContent, Interactor, InteractorFmt, SemanticContent};
+use crate::rendering::{Bevels, CellContent, InteractorFmt, SemanticContent};
 
 use gridd_euclid::{Grid, PointsIn};
 

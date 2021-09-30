@@ -1,4 +1,4 @@
-use crate::{Brush, Brushable, FSem};
+use crate::{Brush, Brushable};
 use crate::aliases::*;
 
 
