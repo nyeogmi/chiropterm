@@ -24,8 +24,8 @@ impl<'a> TileSet<'a> {
 }
 
 impl Tile {
-    #[inline(always)]  // TODO: Is this an actual savings?
-    pub(crate) fn render(&self, 
+    pub(crate) fn render(
+        &self, 
         out_buf: &mut Vec<u32>, 
         out_x: u16, out_y: u16, out_width: u16, 
         fg: u32, bg: u32,
@@ -34,6 +34,10 @@ impl Tile {
         right_bevel: bool, right_bevel_fg: u32,
         bottom_bevel: bool, bottom_bevel_fg: u32,
     ) {
+        if !(top_bevel || left_bevel || right_bevel || bottom_bevel) {
+            return self.render_fast(out_buf, out_x, out_y, out_width, fg, bg);
+        }
+
         let real_out_x = out_x as usize * CELL_X;
         let real_out_y = out_y as usize * CELL_Y;
         let real_out_width = out_width as usize * CELL_X;
@@ -80,7 +84,24 @@ impl Tile {
                 }
             }
         }
+    }
 
+    pub(crate) fn render_fast(
+        &self, 
+        out_buf: &mut Vec<u32>, 
+        out_x: u16, out_y: u16, out_width: u16, 
+        fg: u32, bg: u32
+    ) {
+        let real_out_x = out_x as usize * CELL_X;
+        let real_out_y = out_y as usize * CELL_Y;
+        let real_out_width = out_width as usize * CELL_X;
+
+        for y in [0, 1, 2, 3, 4, 5, 6, 7] {
+            for x in [0, 1, 2, 3, 4, 5, 6, 7] {
+                let color = if self.0[y as usize] >> x & 1 == 1 { fg } else { bg };
+                out_buf[((real_out_y + y) * real_out_width + real_out_x + x) as usize] = color;
+            }
+        }
     }
 
     pub(crate) fn left(&self) -> Tile {
