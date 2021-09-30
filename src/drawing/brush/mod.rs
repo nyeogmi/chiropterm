@@ -5,11 +5,11 @@ mod fill;
 mod split;
 
 
-pub trait Brushable: Sized {
+pub trait Brushable {
     fn draw(&self, at: CellPoint, f: FSem);
     // TODO: "set cursor" function, can be a no op for types without a cursor
 
-    fn brush_at(&self, rect: CellRect) -> Brush<'_, Self> {
+    fn brush_at(&self, rect: CellRect) -> Brush<'_> where Self: Sized {
         Brush { 
             underlying: self,
             rect,
@@ -28,8 +28,8 @@ pub trait Brushable: Sized {
     }
 }
 
-pub struct Brush<'a, B: Brushable> {
-    underlying: &'a B,
+pub struct Brush<'a> {
+    underlying: &'a dyn Brushable,
     // NYEO NOTE: `rect` is the bounds that the outside world sees
     // `clip` is an inner set of boundaries enforced on the underlying object, 
     // in the underlying object's coord system
@@ -44,7 +44,7 @@ pub struct Brush<'a, B: Brushable> {
     interactor: Option<InteractorFmt>,
 }
 
-impl<'a, B: Brushable> Clone for Brush<'a, B> {
+impl<'a> Clone for Brush<'a> {
     fn clone(&self) -> Self {
         Self { 
             underlying: self.underlying.clone(), 
@@ -61,7 +61,7 @@ impl<'a, B: Brushable> Clone for Brush<'a, B> {
     }
 }
 
-impl<'a, B: Brushable> Brush<'a, B> {
+impl<'a> Brush<'a> {
     pub fn at(&self, cursor: CellPoint) -> Self {
         let mut b = self.clone();
         b.cursor = cursor;
@@ -161,7 +161,7 @@ impl<'a, B: Brushable> Brush<'a, B> {
     }
 }
 
-impl<'a, B: Brushable> Brushable for Brush<'a, B> {
+impl<'a> Brushable for Brush<'a> {
     fn draw(&self, mut at: CellPoint, mut f: FSem) {
         at += self.cursor_offset;
 

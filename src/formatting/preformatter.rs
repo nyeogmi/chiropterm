@@ -1,6 +1,6 @@
 use euclid::point2;
 
-use crate::{aliases::{CellPoint}, cp437, drawing::{Brushable}, rendering::Font};
+use crate::{aliases::{CellPoint}, cp437, rendering::Font};
 use crate::drawing::Brush;
 
 use super::{FChar, FString, fstring::FBevels};
@@ -18,19 +18,19 @@ impl Preformatter {
         else { self.main_width_chars }
     }
 
-    pub fn to_brush<U: Brushable>(&self, s: &str, brush: &mut Brush<U>) {
+    pub fn to_brush(&self, s: &str, brush: &mut Brush) {
         let fs = self.to_fstring(s);
         let words = self.break_words(&fs);
         let lines = self.break_lines(&words);
         self.onto_brush_internal(&lines, &words, &fs, brush)
     }
     
-    fn onto_brush_internal<U: Brushable>(
+    fn onto_brush_internal(
         &self,
         lines: &Vec<FLine>,
         words: &Vec<FWord>,
         characters: &FString,
-        brush: &mut Brush<U>,
+        brush: &mut Brush,
     ) {
         let char_size = self.font.char_size();
 

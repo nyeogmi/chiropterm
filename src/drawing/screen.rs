@@ -76,7 +76,7 @@ impl Brushable for Screen {
 }
 
 impl Screen {
-    pub fn brush(&self) -> Brush<'_, Self> {
+    pub fn brush(&self) -> Brush<'_> {
         self.brush_at(self.rect())
     }
 }

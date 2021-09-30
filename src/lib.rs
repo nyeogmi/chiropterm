@@ -1,4 +1,5 @@
 #![feature(cell_update)]
+#![feature(const_fn_trait_bound)]
 #![feature(type_alias_impl_trait)]
 extern crate minifb;
 

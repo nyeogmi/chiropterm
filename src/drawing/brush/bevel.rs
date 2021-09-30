@@ -1,7 +1,7 @@
 use crate::{Brush, Brushable, FSem};
 use crate::aliases::*;
 
-impl <'a, B: Brushable> Brush<'a, B> {
+impl <'a> Brush<'a> {
     pub fn bevel_w95(&self, top_left: u8, bottom_right: u8) {
         // shorthand for w95-style bevels
         self.bevel_top(top_left);
