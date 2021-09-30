@@ -13,7 +13,6 @@ use self::{math::{calculate_aspect, default_window_size}, mouse::Mouse};
 pub(crate) use self::math::Aspect;
 
 pub use menu::Menu;
-use menu::Handled;
 
 pub use self::math::AspectConfig;
 pub use input::*;
@@ -117,18 +116,24 @@ impl IO {
         inp.unwrap()
     }
 
-    pub fn menu(&mut self, mut on_redraw: impl FnMut(&Screen, &Menu<'_>)) {
+    pub fn menu_nil(&mut self, on_redraw: impl FnMut(&Screen, &Menu<'_, ()>)) -> () {
+        self.menu(on_redraw)
+    }
+
+    pub fn menu<T>(&mut self, mut on_redraw: impl FnMut(&Screen, &Menu<'_, T>)) -> T {
         let menu = Menu::new();
+        let mut cmd = None;
         self.wait(EventLoop {
             on_redraw: Box::new(|io| { on_redraw(&io.screen, &menu) }),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, i| { 
-                if let Handled::Yes = menu.handle(i) { return Resume::Now; }
+                if let Some(x) = menu.handle(i) { cmd = Some(x); return Resume::Now; }
                 Resume::NotYet
             }),
             on_frame: Box::new(|_| Resume::NotYet),
         });
+        cmd.unwrap()
     }
 
 
@@ -152,7 +157,7 @@ impl IO {
 
     fn wait<'a>(&mut self, mut evt: EventLoop<'a>) {
         let mut old_aspect = None;
-        for iteration in 0 as u64.. {
+        'main: for iteration in 0 as u64.. {
             let mut window_changed: bool = false;
             if let None = self.window { self.reconstitute_window(); window_changed = true }
             let aspect = self.reconstitute_buffer();  
@@ -190,11 +195,11 @@ impl IO {
             );
 
             while let Some(keypress) = self.keyboard.getch() {
-                if let Resume::Now = (evt.on_input)(self, InputEvent::Keyboard(keypress)) { return }
+                if let Resume::Now = (evt.on_input)(self, InputEvent::Keyboard(keypress)) { break 'main }
             }
 
             while let Some(mouse_evt) = self.mouse.getch() {
-                if let Resume::Now = (evt.on_input)(self, InputEvent::Mouse(mouse_evt)) { return }
+                if let Resume::Now = (evt.on_input)(self, InputEvent::Mouse(mouse_evt)) { break 'main }
             }
 
             let interactor_changed = self.mouse.interactor_changed();
@@ -212,6 +217,11 @@ impl IO {
                 let win = self.window.as_mut().unwrap();
                 win.update()
             }
+        }
+
+        // before returning: make sure window is updated so we don't get duplicate keypresses
+        if let Some(win) = self.window.as_mut() {
+            win.update()
         }
     }
 

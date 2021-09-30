@@ -2,6 +2,10 @@ use crate::{aliases::*, formatting::{FSem, Justification, Preformatter}, renderi
 
 use gridd_euclid::PointsIn;
 
+mod bevel;
+mod fill;
+mod split;
+
 
 pub trait Brushable: Sized {
     fn draw(&self, at: CellPoint, f: FSem);
@@ -65,6 +69,8 @@ impl<'a, B: Brushable> Brush<'a, B> {
         b.cursor = cursor;
         b
     }
+
+    pub fn rect(&self) -> CellRect { self.rect }
 
     pub fn shift(&self, amt: CellVector) -> Self {
         let mut b = self.clone();
@@ -148,6 +154,7 @@ impl<'a, B: Brushable> Brush<'a, B> {
         b.clip = b.clip.intersection(&r.translate(b.cursor_offset)).unwrap_or(rect(0, 0, 0, 0));
         b.cursor_offset = r.origin.to_vector();
         b.rect = CellRect::new(CellPoint::zero(), r.size);
+        b.cursor = point2(0, 0);
         b
     }
 }
@@ -165,73 +172,5 @@ impl<'a, B: Brushable> Brushable for Brush<'a, B> {
         f.interactor = f.interactor.or(self.interactor);
 
         self.underlying.draw(at, f)
-    }
-}
-
-
-// more drawing ops!
-impl <'a, B: Brushable> Brush<'a, B> {
-    pub fn fill(&self, f: FSem) {
-        for i in isize::points_in(self.rect) {
-            self.draw(i, f)
-        }
-    }
-
-    pub fn bevel_w95(&self, top_left: u8, bottom_right: u8) {
-        // shorthand for w95-style bevels
-        self.bevel_top(top_left);
-        self.bevel_left(top_left);
-        self.bevel_right(bottom_right);
-        self.bevel_bottom(bottom_right);
-    }
-
-    pub fn bevel_w95_sleek(&self, left: u8, right: u8) {
-        // w95-style bevels with no top or bottom
-        self.bevel_left(left);
-        self.bevel_right(right);
-    }
-
-    pub fn bevel_top(&self, color: u8) {
-        if self.rect.height() == 0 { return; }
-
-        let mut sem = FSem::new();
-        sem.bevels.top = Some(color);
-
-        for x in self.rect.min_x()..self.rect.max_x() {
-            self.draw(point2(x, self.rect.min_y()), sem);
-        }
-    }
-
-    pub fn bevel_left(&self, color: u8) {
-        if self.rect.width() == 0 { return; }
-
-        let mut sem = FSem::new();
-        sem.bevels.left = Some(color);
-
-        for y in self.rect.min_y()..self.rect.max_y() {
-            self.draw(point2(self.rect.min_x(), y), sem);
-        }
-    }
-
-    pub fn bevel_right(&self, color: u8) {
-        if self.rect.width() == 0 { return; }
-
-        let mut sem = FSem::new();
-        sem.bevels.right = Some(color);
-
-        for y in self.rect.min_y()..self.rect.max_y() {
-            self.draw(point2(self.rect.max_x() - 1, y), sem);
-        }
-    }
-
-    pub fn bevel_bottom(&self, color: u8) {
-        if self.rect.height() == 0 { return; }
-
-        let mut sem = FSem::new();
-        sem.bevels.bottom = Some(color);
-
-        for x in self.rect.min_x()..self.rect.max_x() {
-            self.draw(point2(x, self.rect.max_y() - 1), sem);
-        }
     }
 }

@@ -7,14 +7,14 @@ use super::{KeyEvent, MouseEvent, input::{InputEvent, Keycode}};
 // TODO: Clear all interactors in one stroke? Or uh, a sub-menu that generates the None interactor no matter what
 // You know, so you can draw a screen with all its menus disabled!
 
-pub struct Menu<'a> {
-    handlers: RefCell<Vec<Handler<'a>>>,
+pub struct Menu<'a, T> {
+    handlers: RefCell<Vec<Handler<'a, T>>>,
     key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
     // TODO: Key handlers again
 }
 
-impl<'a> Menu<'a> {
-    pub fn new() -> Menu<'a> {
+impl<'a, T> Menu<'a, T> {
+    pub fn new() -> Menu<'a, T> {
         Menu {
             handlers: RefCell::new(vec![]),
             key_recognizers: RefCell::new(vec![]),
@@ -22,13 +22,10 @@ impl<'a> Menu<'a> {
     }
 
     // combines on_key and on_click
-    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent)) -> Interactor {
+    pub fn on(&self, k: Keycode, cb: impl 'a+Fn(InputEvent) -> T) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
-        hndl.push(Handler(Box::new(move |input| {
-            cb(input);
-            Handled::Yes
-        })));
+        hndl.push(Handler(Box::new(move |input| { cb(input) })));
         let interactor = Interactor::from_index(ix);
         // TODO: Distinguish X and ctrl-X
         let mut krcg = self.key_recognizers.borrow_mut();
@@ -39,12 +36,12 @@ impl<'a> Menu<'a> {
         interactor
     }
 
-    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent)) {
+    pub fn on_key(&self, k: Keycode, cb: impl 'a+Fn(KeyEvent) -> T) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
             match input {
-                InputEvent::Keyboard(k) => { cb(k); Handled::Yes }
+                InputEvent::Keyboard(k) => { cb(k) }
                 _ => unreachable!(),
             }
         })));
@@ -57,51 +54,49 @@ impl<'a> Menu<'a> {
         })));
     }
 
-    pub fn on_click(&self, mut cb: impl 'a+FnMut(MouseEvent)) -> Interactor {
+    pub fn on_click(&self, cb: impl 'a+Fn(MouseEvent) -> T) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
             match input {
-                InputEvent::Mouse(m) => { cb(m); Handled::Yes }
+                InputEvent::Mouse(m) => { cb(m) }
                 _ => unreachable!(),
             }
         })));
         Interactor::from_index(ix)
     }
 
-    pub(crate) fn handle(&self, i: InputEvent) -> Handled {
+    pub(crate) fn handle(&self, i: InputEvent) -> Option<T> {
         match i {
             InputEvent::Keyboard(k) => { 
                 let kcrg = self.key_recognizers.borrow();
                 for rec in kcrg.iter() {
                     let interactor = (rec.0)(k);
                     if let Some(ix) = interactor.index() {
-                        let mut hnd = self.handlers.borrow_mut();
-                        if ix < hnd.len() { return (hnd[ix].0)(i); };
+                        let hnd = self.handlers.borrow_mut();
+                        if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
                     }
-                };
-                Handled::No
+                }
+                None
             }
             InputEvent::Mouse(MouseEvent::Click(_, _, interactor)) => {
                 if let Some(ix) = interactor.index() {
-                    let mut hnd = self.handlers.borrow_mut();
-                    if ix < hnd.len() { return (hnd[ix].0)(i); };
+                    let hnd = self.handlers.borrow_mut();
+                    if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
                 }
-                Handled::No
+                None
             },
             InputEvent::Mouse(_) => {
-                Handled::No
+                None
             }
         }
     }
 }
 
-struct Handler<'a> (
-    Box<dyn 'a+FnMut(InputEvent) -> Handled>,
+struct Handler<'a, T> (
+    Box<dyn 'a+Fn(InputEvent) -> T>,
 );
 
 struct KeyRecognizer<'a> (
     Box<dyn 'a+Fn(KeyEvent) -> Interactor>,
 );
-
-pub(crate) enum Handled { Yes, No }
