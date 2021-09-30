@@ -66,6 +66,23 @@ impl<'a, T> Menu<'a, T> {
         Interactor::from_index(ix)
     }
 
+    pub fn on_text(&self, mut cb: impl 'a+FnMut(char) -> T) {
+        let mut hndl = self.handlers.borrow_mut();
+        let ix = hndl.len();
+        hndl.push(Handler(Box::new(move |input| {
+            match input {
+                InputEvent::Keyboard(k) => { cb(k.char.unwrap()) }
+                _ => unreachable!(),
+            }
+        })));
+        let interactor = Interactor::from_index(ix);
+        let mut krcg = self.key_recognizers.borrow_mut();
+        krcg.push(KeyRecognizer(Box::new(move |key| {
+            if let Some(_) = key.char { return interactor; }
+            Interactor::none()
+        })));
+    }
+
     pub(crate) fn handle(&self, i: InputEvent) -> Option<T> {
         match i {
             InputEvent::Keyboard(k) => { 

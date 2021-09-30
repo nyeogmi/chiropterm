@@ -71,6 +71,8 @@ impl<'a, B: Brushable> Brush<'a, B> {
     }
 
     pub fn rect(&self) -> CellRect { self.rect }
+    pub fn clip(&self) -> CellRect { self.clip }  // Use this for debugging, mostly
+    pub fn cursor_offset(&self) -> CellVector { self.cursor_offset }  // Use this for debugging, mostly
 
     pub fn shift(&self, amt: CellVector) -> Self {
         let mut b = self.clone();
@@ -152,7 +154,7 @@ impl<'a, B: Brushable> Brush<'a, B> {
     pub fn region(&self, r: CellRect) -> Self {
         let mut b = self.clone();
         b.clip = b.clip.intersection(&r.translate(b.cursor_offset)).unwrap_or(rect(0, 0, 0, 0));
-        b.cursor_offset = r.origin.to_vector();
+        b.cursor_offset += r.origin.to_vector();
         b.rect = CellRect::new(CellPoint::zero(), r.size);
         b.cursor = point2(0, 0);
         b

@@ -20,7 +20,7 @@ impl Keyboard {
     }
 
     pub fn add_pressed_keys(&mut self, window: &mut Window) {
-        if let Some(pressed) = window.get_keys_pressed(KeyRepeat::No) {
+        if let Some(pressed) = window.get_keys_pressed(KeyRepeat::Yes) {
             let mut corr = self.correlator.0.borrow_mut();
             let shift = window.is_key_down(MinifbKey::LeftShift) || window.is_key_down(MinifbKey::RightShift);
             let control = window.is_key_down(MinifbKey::LeftCtrl) || window.is_key_down(MinifbKey::RightCtrl);
