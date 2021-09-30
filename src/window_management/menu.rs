@@ -22,7 +22,7 @@ impl<'a, T> Menu<'a, T> {
     }
 
     // combines on_key and on_click
-    pub fn on(&self, k: Keycode, cb: impl 'a+Fn(InputEvent) -> T) -> Interactor {
+    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent) -> T) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| { cb(input) })));
@@ -36,7 +36,7 @@ impl<'a, T> Menu<'a, T> {
         interactor
     }
 
-    pub fn on_key(&self, k: Keycode, cb: impl 'a+Fn(KeyEvent) -> T) {
+    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> T) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -54,7 +54,7 @@ impl<'a, T> Menu<'a, T> {
         })));
     }
 
-    pub fn on_click(&self, cb: impl 'a+Fn(MouseEvent) -> T) -> Interactor {
+    pub fn on_click(&self, mut cb: impl 'a+FnMut(MouseEvent) -> T) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -73,7 +73,7 @@ impl<'a, T> Menu<'a, T> {
                 for rec in kcrg.iter() {
                     let interactor = (rec.0)(k);
                     if let Some(ix) = interactor.index() {
-                        let hnd = self.handlers.borrow_mut();
+                        let mut hnd = self.handlers.borrow_mut();
                         if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
                     }
                 }
@@ -81,7 +81,7 @@ impl<'a, T> Menu<'a, T> {
             }
             InputEvent::Mouse(MouseEvent::Click(_, _, interactor)) => {
                 if let Some(ix) = interactor.index() {
-                    let hnd = self.handlers.borrow_mut();
+                    let mut hnd = self.handlers.borrow_mut();
                     if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
                 }
                 None
@@ -94,7 +94,7 @@ impl<'a, T> Menu<'a, T> {
 }
 
 struct Handler<'a, T> (
-    Box<dyn 'a+Fn(InputEvent) -> T>,
+    Box<dyn 'a+FnMut(InputEvent) -> T>,
 );
 
 struct KeyRecognizer<'a> (

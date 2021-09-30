@@ -116,11 +116,11 @@ impl IO {
         inp.unwrap()
     }
 
-    pub fn menu_nil(&mut self, on_redraw: impl FnMut(&Screen, &Menu<'_, ()>)) -> () {
-        self.menu(on_redraw)
+    pub fn menu(&mut self, on_redraw: impl FnMut(&Screen, &Menu<'_, ()>)) -> () {
+        self.internal_menu(on_redraw)
     }
 
-    pub fn menu<T>(&mut self, mut on_redraw: impl FnMut(&Screen, &Menu<'_, T>)) -> T {
+    pub fn internal_menu<T>(&mut self, mut on_redraw: impl FnMut(&Screen, &Menu<T>)) -> T {
         let menu = Menu::new();
         let mut cmd = None;
         self.wait(EventLoop {
