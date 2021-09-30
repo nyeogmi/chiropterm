@@ -1,4 +1,4 @@
-use crate::{aliases::CellPoint, rendering::Interactor};
+use crate::{CellVector, aliases::CellPoint, rendering::Interactor};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum InputEvent {
@@ -11,6 +11,17 @@ pub enum MouseEvent {
     Click(MouseButton, CellPoint, Interactor),
     Up(MouseButton, CellPoint, Interactor),
     // wheel, dragging
+}
+
+impl MouseEvent {
+    pub fn offset(&self, vec: CellVector) -> MouseEvent {
+        match *self {
+            MouseEvent::Click(mb, cp, int) => 
+                MouseEvent::Click(mb, cp + vec, int),
+            MouseEvent::Up(mb, cp, int) => 
+                MouseEvent::Up(mb, cp + vec, int),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]

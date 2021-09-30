@@ -17,9 +17,9 @@ pub use menu::Menu;
 pub use self::math::AspectConfig;
 pub use input::*;
 
-const FRAMES_PER_SECOND: usize = 30;
+const FRAMES_PER_SECOND: usize = 60;
 const TRUE_FRAME_DURATION: usize = 1660; // 600 FPS
-const REDRAW_EVERY: u64 = 20;   // practically 30 FPS
+const REDRAW_EVERY: u64 = 10;   // practically 60 FPS
 
 pub struct IO {
     // user vars
