@@ -22,23 +22,23 @@ impl<'a, T> Menu<'a, T> {
         Menu { state: self.state.clone() }
     }
 
-    pub fn on(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> T) -> Interactor {
+    pub fn on(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> Signal<T>) -> Interactor {
         self.state.on(k, cb)
     }
 
-    pub fn on_key(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> T) {
+    pub fn on_key(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> Signal<T>) {
         self.state.on_key(k, cb)
     }
 
-    pub fn on_click(&self, cb: impl 'a+FnMut(MouseEvent) -> T) -> Interactor {
+    pub fn on_click(&self, cb: impl 'a+FnMut(MouseEvent) -> Signal<T>) -> Interactor {
         self.state.on_click(cb)
     }
 
-    pub fn on_text(&self, cb: impl 'a+FnMut(char) -> T) {
+    pub fn on_text(&self, cb: impl 'a+FnMut(char) -> Signal<T>) {
         self.state.on_text(cb)
     }
 
-    pub(crate) fn handle(&self, i: InputEvent) -> Option<T> {
+    pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal<T>> {
         self.state.handle(i)
     }
 }
@@ -58,7 +58,7 @@ impl<'a, T> MenuState<'a, T> {
     }
 
     // combines on_key and on_click
-    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent) -> T) -> Interactor {
+    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent) -> Signal<T>) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| { cb(input) })));
@@ -72,7 +72,7 @@ impl<'a, T> MenuState<'a, T> {
         interactor
     }
 
-    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> T) {
+    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> Signal<T>) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -90,7 +90,7 @@ impl<'a, T> MenuState<'a, T> {
         })));
     }
 
-    pub fn on_click(&self, mut cb: impl 'a+FnMut(MouseEvent) -> T) -> Interactor {
+    pub fn on_click(&self, mut cb: impl 'a+FnMut(MouseEvent) -> Signal<T>) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -102,7 +102,7 @@ impl<'a, T> MenuState<'a, T> {
         Interactor::from_index(ix)
     }
 
-    pub fn on_text(&self, mut cb: impl 'a+FnMut(char) -> T) {
+    pub fn on_text(&self, mut cb: impl 'a+FnMut(char) -> Signal<T>) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -119,7 +119,7 @@ impl<'a, T> MenuState<'a, T> {
         })));
     }
 
-    pub(crate) fn handle(&self, i: InputEvent) -> Option<T> {
+    pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal<T>> {
         match i {
             InputEvent::Keyboard(k) => { 
                 let kcrg = self.key_recognizers.borrow();
@@ -154,9 +154,14 @@ impl<'a, T> MenuState<'a, T> {
 }
 
 struct Handler<'a, T> (
-    Box<dyn 'a+FnMut(InputEvent) -> T>,
+    Box<dyn 'a+FnMut(InputEvent) -> Signal<T>>,
 );
 
 struct KeyRecognizer<'a> (
     Box<dyn 'a+Fn(KeyEvent) -> Interactor>,
 );
+
+pub enum Signal<T> {
+    Break(T),
+    Continue,
+}

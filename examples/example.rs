@@ -18,7 +18,7 @@ fn main() {
     );
 
     io.menu(
-        |out, menu| {
+        |out, menu: Menu<()>| {
             let ramp_bg = Purple;
             let ramp_fg = Yellow;
 
@@ -28,11 +28,13 @@ fn main() {
             content_box.bevel_w95_sleek(ramp_bg[0], ramp_bg[3]);
 
             let interactor_one = menu.on(Keycode::B, |k| {
-                println!("hit (1) {:?}", k)
+                println!("hit (1) {:?}", k);
+                Signal::Break(())
             });
 
             let interactor_two = menu.on(Keycode::C, |k| {
-                println!("hit (2) {:?}", k)
+                println!("hit (2) {:?}", k);
+                Signal::Continue
             });
 
             let b = content_box.at(point2(0, 0))

@@ -12,7 +12,7 @@ use crate::{drawing::Screen, rendering::{self, Interactor, Render, Swatch}, wind
 use self::{math::{calculate_aspect, default_window_size}, mouse::Mouse};
 pub(crate) use self::math::Aspect;
 
-pub use menu::Menu;
+pub use menu::{Menu, Signal};
 
 pub use self::math::AspectConfig;
 pub use input::*;
@@ -116,11 +116,16 @@ impl IO {
         inp.unwrap()
     }
 
-    pub fn menu<'draw>(&mut self, on_redraw: impl 'draw+FnMut(&Screen, Menu<'draw, ()>)) -> () {
-        self.internal_menu(on_redraw)
+    pub fn menu<T>(&mut self, mut on_redraw: impl FnMut(&Screen, Menu<T>)) -> T {
+        loop {
+            match self.low_level_menu(&mut on_redraw) {
+                Signal::Break(t) => { return t }
+                Signal::Continue => {}
+            }
+        } 
     }
 
-    pub fn internal_menu<'draw, T>(&mut self, mut on_redraw: impl 'draw+FnMut(&Screen, Menu<'draw, T>)) -> T {
+    fn low_level_menu<T>(&mut self, on_redraw: &mut impl FnMut(&Screen, Menu<T>)) -> Signal<T> {
         let menu = Menu::new();
         let mut cmd = None;
         self.wait(EventLoop {
@@ -184,7 +189,7 @@ impl IO {
             }
 
             // check events
-            if let Resume::Now = (evt.on_frame)(self) { return }
+            if let Resume::Now = (evt.on_frame)(self) { break 'main }
 
             let win = self.window.as_mut().unwrap();
             self.keyboard.add_pressed_keys(win);

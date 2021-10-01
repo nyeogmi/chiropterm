@@ -26,4 +26,5 @@ pub use window_management::{
     KeyEvent, 
     Keycode,
     IO,
+    Signal,
 };
