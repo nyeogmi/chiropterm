@@ -2,7 +2,7 @@ use crate::{Brush, Brushable, FSem};
 use crate::aliases::*;
 
 impl <'a> Brush<'a> {
-    pub fn bevel_w95(&self, top_left: u8, bottom_right: u8) {
+    pub fn bevel_w95(&self, (top_left, bottom_right): (u8, u8)) {
         // shorthand for w95-style bevels
         self.bevel_top(top_left);
         self.bevel_left(top_left);
@@ -10,7 +10,7 @@ impl <'a> Brush<'a> {
         self.bevel_bottom(bottom_right);
     }
 
-    pub fn bevel_w95_sleek(&self, left: u8, right: u8) {
+    pub fn bevel_w95_sleek(&self, (left, right): (u8, u8)) {
         // w95-style bevels with no top or bottom
         self.bevel_left(left);
         self.bevel_right(right);

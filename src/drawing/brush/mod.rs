@@ -105,8 +105,12 @@ impl<'a> Brush<'a> {
         b
     }
 
+    pub fn color(&self, (bg, fg): (u8, u8)) -> Self {
+        self.bg(bg).fg(fg)
+    }
+
     // TODO: method to explicitly clear interactor? might be a good idea
-    pub fn interactor(&self, interactor: Interactor, bg: u8, fg: u8) -> Self {
+    pub fn interactor(&self, interactor: Interactor, (bg, fg): (u8, u8)) -> Self {
         let mut b = self.clone();
         b.interactor = Some(InteractorFmt { interactor, bg, fg });
         b

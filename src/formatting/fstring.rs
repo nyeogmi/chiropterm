@@ -68,6 +68,12 @@ impl FSem {
         self
     }
 
+    pub fn color(mut self, (bg, fg): (u8, u8)) -> FSem {
+        self.bg = Some(bg);
+        self.fg = Some(fg);
+        self
+    }
+
     pub fn interactor(mut self, interactor: Interactor, bg: u8, fg: u8) -> FSem {
         self.interactor = Some(InteractorFmt { interactor, bg, fg });
         self
