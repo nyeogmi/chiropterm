@@ -23,6 +23,10 @@ impl Stamp {
     pub fn iter(&mut self) -> impl '_+DoubleEndedIterator<Item=(CellPoint, FSem)> {
         self.content.get_mut().iter_populated()
     }
+
+    pub fn rect(&self) -> CellRect {
+        self.content.borrow().rect()
+    }
 }
 
 impl Brushable for Stamp {
