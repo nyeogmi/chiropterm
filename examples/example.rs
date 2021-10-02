@@ -19,13 +19,13 @@ fn main() {
 
     io.menu(
         |out, menu: Menu<()>| {
-            let ramp_bg = Purple;
-            let ramp_fg = Yellow;
+            let ramp_bg = DkPurple;
+            let ramp_fg = LtYellow;
 
             let content_box = out.brush().region(out.rect().inflate(-2, -2));
 
             content_box.fill(FSem::new().bg(ramp_bg[1]));
-            content_box.bevel_w95_sleek(ramp_bg[0], ramp_bg[3]);
+            content_box.bevel_w95_sleek((ramp_bg[0], ramp_bg[3]));
 
             let interactor_one = menu.on(Keycode::B, |k| {
                 println!("hit (1) {:?}", k);
@@ -40,10 +40,10 @@ fn main() {
             let b = content_box.at(point2(0, 0))
             .bg(ramp_bg[2]).fg(ramp_fg[2])
             .font(Font::Set).putfs("WELCOME TO ")
-            .bg(ramp_bg[3]).font(Font::Fat).interactor(interactor_one, ramp_fg[2], ramp_bg[3]).putfs("BATCON").no_interactor()
+            .bg(ramp_bg[3]).font(Font::Fat).interactor(interactor_one, (ramp_fg[2], ramp_bg[3])).putfs("BATCON").no_interactor()
             .font(Font::Small).putfs("TM").font(Font::Fat); // fat again (so the newline will work)
 
-            b.bg(ramp_bg[0]).fg(ramp_fg[3]).on_newline().font(Font::Normal).interactor(interactor_two, ramp_fg[3], ramp_bg[0]).putfs(concat!(
+            b.bg(ramp_bg[0]).fg(ramp_fg[3]).on_newline().font(Font::Normal).interactor(interactor_two, (ramp_fg[3], ramp_bg[0])).putfs(concat!(
                 "the premier convention for all the bats ",
                 "and all the big bats and all the little ",
                 "bats and the bats and the bats",
