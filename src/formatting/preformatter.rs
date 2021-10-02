@@ -18,7 +18,7 @@ impl Preformatter {
         else { self.main_width_chars }
     }
 
-    pub fn to_brush(&self, s: &str, brush: &mut Brush) {
+    pub fn draw(&self, s: &str, brush: &mut Brush) {
         let fs = self.to_fstring(s);
         let words = self.break_words(&fs);
         let lines = self.break_lines(&words);

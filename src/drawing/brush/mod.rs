@@ -1,6 +1,7 @@
-use crate::{aliases::*, formatting::{FSem, Justification, Preformatter}, rendering::{Font, Interactor, InteractorFmt}};
+use crate::{aliases::*, formatting::{FChar, FSem, Justification, Preformatter}, rendering::{Font, Interactor, InteractorFmt}};
 
 mod bevel;
+mod boxart;
 mod fill;
 mod split;
 
@@ -37,7 +38,7 @@ pub struct Brush<'a> {
     clip: CellRect,
     cursor_offset: CellVector,
     pub cursor: CellPoint, 
-    font: Font,
+    pub font: Font,
 
     fg: Option<u8>,
     bg: Option<u8>,
@@ -143,7 +144,16 @@ impl<'a> Brush<'a> {
             main_width_chars: next_width_chars,
             justification: Justification::Left,
         };
-        pre.to_brush(s, &mut b);
+        pre.draw(s, &mut b);
+        b
+    }
+
+    pub fn putch(&self, u: u16) -> Self {
+        let mut b = self.clone();
+        let font = b.font;
+        let cursor = b.cursor;
+        font.draw_char(cursor, FChar::new().sprite(u), &mut b);
+        // TODO: Update cursor position?
         b
     }
 

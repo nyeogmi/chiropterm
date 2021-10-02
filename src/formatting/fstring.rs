@@ -12,6 +12,17 @@ pub struct FChar {
 }
 
 impl FChar {
+    pub(crate) fn new() -> FChar {
+        FChar { 
+            sprite: None,
+            bg: None,
+            fg: None,
+            interactor: None,
+            bevels: FBevels::new(),
+        }
+    }
+
+
     pub(crate) fn sem(&self, semantic: impl Fn(u16) -> SemanticContent) -> FSem {
         FSem { 
             sem: self.sprite.map(semantic),
@@ -20,6 +31,11 @@ impl FChar {
             interactor: self.interactor,
             bevels: self.bevels,
         }
+    }
+
+    pub(crate) fn sprite(mut self, u: u16) -> FChar {
+        self.sprite = Some(u);
+        self
     }
 }
 

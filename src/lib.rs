@@ -14,7 +14,7 @@ mod rendering;
 mod window_management;
 
 pub use aliases::{CellSpace, CellPoint, CellVector, CellSize, CellRect};
-pub use drawing::{Brush, Brushable, Screen, Stamp};
+pub use drawing::{BoxArt, Brush, Brushable, Screen, Stamp};
 pub use formatting::{FSem, Justification};
 pub use rendering::{colors, Font, Interactor};
 pub use window_management::{
