@@ -1,5 +1,6 @@
 use crate::{aliases::*, formatting::{FChar, FSem, Justification, Preformatter}, rendering::{Font, Interactor, InteractorFmt}};
 
+mod align;
 mod bevel;
 mod boxart;
 mod fill;
