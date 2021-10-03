@@ -14,6 +14,7 @@ pub struct CellContent {
 pub enum SemanticContent {
     Blank,
     Small(u16), 
+    SmallPizza1(u16, u16), SmallPizza2(u16, u16), // two small tiles adjacent, divided by a diagonal line
 
     TopHalf(u16),
     BottomHalf(u16),

@@ -83,5 +83,30 @@ pub fn eval(content: SemanticContent) -> Tile {
         SemanticContent::FatTR(u) => { FONT_FAT.tile((u as usize) * 4 + 1) }
         SemanticContent::FatBL(u) => { FONT_FAT.tile((u as usize) * 4 + 2) }
         SemanticContent::FatBR(u) => { FONT_FAT.tile((u as usize) * 4 + 3) }
+
+        SemanticContent::SmallPizza1(u1, u2) => {
+            Tile(
+                from_u64(
+                    to_u64(FONT_SMALL.tile(u1 as usize).0) & (!0b11111110_11111100_11111000_11110000_11100000_11000000_10000000_00000000) |
+                    to_u64(FONT_SMALL.tile(u2 as usize).0) & ( 0b11111110_11111100_11111000_11110000_11100000_11000000_10000000_00000000)
+                )
+            )
+        }
+        SemanticContent::SmallPizza2(u1, u2) => {
+            Tile(
+                from_u64(
+                    to_u64(FONT_SMALL.tile(u1 as usize).0) & (!0b01111111_00111111_00011111_00001111_00000111_00000011_00000001_00000000) |
+                    to_u64(FONT_SMALL.tile(u2 as usize).0) & ( 0b01111111_00111111_00011111_00001111_00000111_00000011_00000001_00000000)
+                )
+            )
+        }
     }
+}
+
+const fn to_u64(u8s: [u8; 8]) -> u64 {
+    u64::from_le_bytes(u8s)
+}
+
+const fn from_u64(u: u64) -> [u8; 8] {
+    u64::to_le_bytes(u)
 }
