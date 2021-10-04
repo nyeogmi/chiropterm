@@ -18,7 +18,7 @@ fn main() {
     );
 
     io.menu(
-        |out, menu: Menu<()>| {
+        |out, menu: Menu| {
             let ramp_bg = DkPurple;
             let ramp_fg = LtYellow;
 
@@ -29,7 +29,7 @@ fn main() {
 
             let interactor_one = menu.on(Keycode::B, |k| {
                 println!("hit (1) {:?}", k);
-                Signal::Break(())
+                Signal::Break
             });
 
             let interactor_two = menu.on(Keycode::C, |k| {

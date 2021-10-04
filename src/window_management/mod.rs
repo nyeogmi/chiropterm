@@ -126,12 +126,12 @@ impl IO {
         inp.unwrap()
     }
 
-    pub fn menu<T>(&mut self, mut on_redraw: impl FnMut(&Screen, Menu<T>)) -> T {
+    pub fn menu(&mut self, mut on_redraw: impl FnMut(&Screen, Menu)) {
         loop {
             let mut sig = Some(self.low_level_menu(&mut on_redraw));
             while let Some(s) = sig.take() {
                 match s {
-                    Signal::Break(t) => { return t }
+                    Signal::Break => { return }
                     Signal::Modal(m) => {
                         sig.replace(m(self));
                     }
@@ -141,7 +141,7 @@ impl IO {
         } 
     }
 
-    fn low_level_menu<T>(&mut self, on_redraw: &mut impl FnMut(&Screen, Menu<T>)) -> Signal<T> {
+    fn low_level_menu(&mut self, on_redraw: &mut impl FnMut(&Screen, Menu)) -> Signal {
         let menu = Menu::new();
         let mut cmd = None;
         self.wait(EventLoop {

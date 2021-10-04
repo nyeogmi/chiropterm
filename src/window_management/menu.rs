@@ -7,50 +7,50 @@ use super::{KeyEvent, MouseEvent, input::{InputEvent, Keycode}};
 // TODO: Clear all interactors in one stroke? Or uh, a sub-menu that generates the None interactor no matter what
 // You know, so you can draw a screen with all its menus disabled!
 
-pub struct Menu<'a, T> {
-    state: Rc<MenuState<'a, T>>,
+pub struct Menu<'a> {
+    state: Rc<MenuState<'a>>,
 }
 
-impl<'a, T> Menu<'a, T> {
-    pub fn new() -> Menu<'a, T> {
+impl<'a> Menu<'a> {
+    pub fn new() -> Menu<'a> {
         Menu {
             state: Rc::new(MenuState::new())
         }
     }
 
-    pub fn share(&self) -> Menu<'a, T> {
+    pub fn share(&self) -> Menu<'a> {
         Menu { state: self.state.clone() }
     }
 
-    pub fn on(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> Signal<T>) -> Interactor {
+    pub fn on(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> Signal) -> Interactor {
         self.state.on(k, cb)
     }
 
-    pub fn on_key(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> Signal<T>) {
+    pub fn on_key(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> Signal) {
         self.state.on_key(k, cb)
     }
 
-    pub fn on_click(&self, cb: impl 'a+FnMut(MouseEvent) -> Signal<T>) -> Interactor {
+    pub fn on_click(&self, cb: impl 'a+FnMut(MouseEvent) -> Signal) -> Interactor {
         self.state.on_click(cb)
     }
 
-    pub fn on_text(&self, cb: impl 'a+FnMut(char) -> Signal<T>) {
+    pub fn on_text(&self, cb: impl 'a+FnMut(char) -> Signal) {
         self.state.on_text(cb)
     }
 
-    pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal<T>> {
+    pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal> {
         self.state.handle(i)
     }
 }
 
-pub struct MenuState<'a, T> {
-    handlers: RefCell<Vec<Handler<'a, T>>>,
+pub struct MenuState<'a> {
+    handlers: RefCell<Vec<Handler<'a>>>,
     key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
     // TODO: Key handlers again
 }
 
-impl<'a, T> MenuState<'a, T> {
-    pub fn new() -> MenuState<'a, T> {
+impl<'a> MenuState<'a> {
+    pub fn new() -> MenuState<'a> {
         MenuState {
             handlers: RefCell::new(vec![]),
             key_recognizers: RefCell::new(vec![]),
@@ -58,7 +58,7 @@ impl<'a, T> MenuState<'a, T> {
     }
 
     // combines on_key and on_click
-    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent) -> Signal<T>) -> Interactor {
+    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent) -> Signal) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| { cb(input) })));
@@ -72,7 +72,7 @@ impl<'a, T> MenuState<'a, T> {
         interactor
     }
 
-    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> Signal<T>) {
+    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> Signal) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -90,7 +90,7 @@ impl<'a, T> MenuState<'a, T> {
         })));
     }
 
-    pub fn on_click(&self, mut cb: impl 'a+FnMut(MouseEvent) -> Signal<T>) -> Interactor {
+    pub fn on_click(&self, mut cb: impl 'a+FnMut(MouseEvent) -> Signal) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -102,7 +102,7 @@ impl<'a, T> MenuState<'a, T> {
         Interactor::from_index(ix)
     }
 
-    pub fn on_text(&self, mut cb: impl 'a+FnMut(char) -> Signal<T>) {
+    pub fn on_text(&self, mut cb: impl 'a+FnMut(char) -> Signal) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -119,7 +119,7 @@ impl<'a, T> MenuState<'a, T> {
         })));
     }
 
-    pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal<T>> {
+    pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal> {
         match i {
             InputEvent::Keyboard(k) => { 
                 let kcrg = self.key_recognizers.borrow();
@@ -160,17 +160,17 @@ impl<'a, T> MenuState<'a, T> {
     }
 }
 
-struct Handler<'a, T> (
-    Box<dyn 'a+FnMut(InputEvent) -> Signal<T>>,
+struct Handler<'a> (
+    Box<dyn 'a+FnMut(InputEvent) -> Signal>,
 );
 
 struct KeyRecognizer<'a> (
     Box<dyn 'a+Fn(KeyEvent) -> Interactor>,
 );
 
-pub enum Signal<T> {
-    Break(T),
-    Modal(Box<dyn FnOnce(&mut IO) -> Signal<T>>),
+pub enum Signal {
+    Break,
+    Modal(Box<dyn FnOnce(&mut IO) -> Signal>),
     Continue,
 }
 
