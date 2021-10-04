@@ -51,7 +51,17 @@ struct EventLoop<'a> {
 
 enum Resume {
     NotYet,
-    Now,
+    PopEvtLoop,
+}
+
+macro_rules! handle_resume {
+    ( $l:tt, $x:expr ) => {
+        // check events
+        match $x { 
+            Resume::NotYet => {},
+            Resume::PopEvtLoop => { break $l; }
+        }
+    }
 }
 
 impl IO {
@@ -110,7 +120,7 @@ impl IO {
             on_redraw: Box::new(|io| { on_redraw(&io.screen) }),
             on_exit: Box::new(self.default_on_exit),
 
-            on_input: Box::new(|_, i| { inp = Some(i); Resume::Now }),
+            on_input: Box::new(|_, i| { inp = Some(i); Resume::PopEvtLoop }),
             on_frame: Box::new(|_| Resume::NotYet),
         });
         inp.unwrap()
@@ -118,9 +128,15 @@ impl IO {
 
     pub fn menu<T>(&mut self, mut on_redraw: impl FnMut(&Screen, Menu<T>)) -> T {
         loop {
-            match self.low_level_menu(&mut on_redraw) {
-                Signal::Break(t) => { return t }
-                Signal::Continue => {}
+            let mut sig = Some(self.low_level_menu(&mut on_redraw));
+            while let Some(s) = sig.take() {
+                match s {
+                    Signal::Break(t) => { return t }
+                    Signal::Modal(m) => {
+                        sig.replace(m(self));
+                    }
+                    Signal::Continue => {}
+                }
             }
         } 
     }
@@ -133,7 +149,7 @@ impl IO {
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, i| { 
-                if let Some(x) = menu.handle(i) { cmd = Some(x); return Resume::Now; }
+                if let Some(x) = menu.handle(i) { cmd = Some(x); return Resume::PopEvtLoop; }
                 Resume::NotYet
             }),
             on_frame: Box::new(|_| Resume::NotYet),
@@ -152,7 +168,7 @@ impl IO {
             on_input: Box::new(|_, __| Resume::NotYet),
             on_frame: Box::new(|_| {
                 if frame as f64 / FRAMES_PER_SECOND as f64 > time {
-                    return Resume::Now;
+                    return Resume::PopEvtLoop;
                 }
                 frame += 1;
                 Resume::NotYet
@@ -189,7 +205,7 @@ impl IO {
             }
 
             // check events
-            if let Resume::Now = (evt.on_frame)(self) { break 'main }
+            handle_resume!('main, (evt.on_frame)(self));
 
             let win = self.window.as_mut().unwrap();
             self.keyboard.add_pressed_keys(win);
@@ -201,11 +217,11 @@ impl IO {
             );
 
             while let Some(keypress) = self.keyboard.getch() {
-                if let Resume::Now = (evt.on_input)(self, InputEvent::Keyboard(keypress)) { break 'main }
+                handle_resume!('main, (evt.on_input)(self, InputEvent::Keyboard(keypress)));
             }
 
             while let Some(mouse_evt) = self.mouse.getch() {
-                if let Resume::Now = (evt.on_input)(self, InputEvent::Mouse(mouse_evt)) { break 'main }
+                handle_resume!('main, (evt.on_input)(self, InputEvent::Mouse(mouse_evt)));
             }
 
             let interactor_changed = self.mouse.interactor_changed();

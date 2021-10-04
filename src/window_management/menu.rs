@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::rendering::Interactor;
+use crate::{IO, rendering::Interactor};
 
 use super::{KeyEvent, MouseEvent, input::{InputEvent, Keycode}};
 
@@ -170,5 +170,9 @@ struct KeyRecognizer<'a> (
 
 pub enum Signal<T> {
     Break(T),
+    Modal(Box<dyn FnOnce(&mut IO) -> Signal<T>>),
     Continue,
+}
+
+trait DoMenu {
 }
