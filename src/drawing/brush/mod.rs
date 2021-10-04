@@ -26,6 +26,7 @@ pub trait Brushable {
             // nyeo note: by default we actually overwrite interactors that might have been created by other draw ops
             // (why? because our text probably isn't related to their thing)
             interactor: Some(InteractorFmt::none()),  
+            scroll_interactor: None,
         }
     }
 }
@@ -44,6 +45,7 @@ pub struct Brush<'a> {
     fg: Option<u8>,
     bg: Option<u8>,
     interactor: Option<InteractorFmt>,
+    scroll_interactor: Option<Interactor>,
 }
 
 impl<'a> Clone for Brush<'a> {
@@ -59,6 +61,7 @@ impl<'a> Clone for Brush<'a> {
             fg: self.fg.clone(), 
             bg: self.bg.clone(),
             interactor: self.interactor.clone(),
+            scroll_interactor: self.scroll_interactor.clone(),
         }
     }
 }
@@ -112,6 +115,12 @@ impl<'a> Brush<'a> {
     }
 
     // TODO: method to explicitly clear interactor? might be a good idea
+    pub fn dont_interfere_with_interactor(&self) -> Self {
+        let mut b = self.clone();
+        b.interactor = None;
+        b
+    }
+
     pub fn interactor(&self, interactor: Interactor, (bg, fg): (u8, u8)) -> Self {
         let mut b = self.clone();
         b.interactor = Some(InteractorFmt { interactor, bg, fg });
@@ -121,6 +130,18 @@ impl<'a> Brush<'a> {
     pub fn no_interactor(&self) -> Self {
         let mut b = self.clone();
         b.interactor = Some(InteractorFmt::none());
+        b
+    }
+
+    pub fn scroll_interactor(&self, interactor: Interactor) -> Self {
+        let mut b = self.clone();
+        b.scroll_interactor = Some(interactor);
+        b
+    }
+
+    pub fn no_scroll_interactor(&self) -> Self {
+        let mut b = self.clone();
+        b.scroll_interactor = Some(Interactor::none());
         b
     }
 
@@ -194,6 +215,7 @@ impl<'a> Brushable for Brush<'a> {
         f.bg = f.bg.or(self.bg);
         f.fg = f.fg.or(self.fg);
         f.interactor = f.interactor.or(self.interactor);
+        f.scroll_interactor = f.scroll_interactor.or(self.scroll_interactor);
 
         self.underlying.draw(at, f)
     }

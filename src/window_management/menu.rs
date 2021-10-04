@@ -146,6 +146,13 @@ impl<'a, T> MenuState<'a, T> {
                 }
                 None
             }
+            InputEvent::Mouse(MouseEvent::Scroll(_, _, interactor)) => {
+                if let Some(ix) = interactor.index() {
+                    let mut hnd = self.handlers.borrow_mut();
+                    if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
+                }
+                None
+            },
             InputEvent::Mouse(_) => {
                 None
             }

@@ -1,4 +1,5 @@
 mod drag;
+mod scroll_wheel;
 
 use std::collections::VecDeque;
 
@@ -8,6 +9,8 @@ use minifb::{MouseButton as MinifbMouseButton, MouseMode, Window};
 
 use crate::{aliases::CellPoint, rendering::Interactor};
 
+use self::scroll_wheel::ScrollWheelMonitor;
+
 use super::{Aspect, input::MouseEvent, input::MouseButton};
 
 use drag::DragMonitor;
@@ -15,6 +18,7 @@ use drag::DragMonitor;
 
 pub(crate) struct Mouse {
     drag: EnumMap<MouseButton, DragMonitor>,
+    scroll_wheel: ScrollWheelMonitor,
 
     old: Option<State>,
     new: Option<State>,
@@ -37,6 +41,7 @@ impl Mouse {
             drag: enum_map::enum_map! {
                 _ => DragMonitor::new(),
             },
+            scroll_wheel: ScrollWheelMonitor::new(),
             old: None, 
             new: None,
             events: VecDeque::new(),
@@ -47,7 +52,8 @@ impl Mouse {
         self.events.pop_front()
     }
 
-    pub fn update(&mut self, aspect: Aspect, window: &mut Window, any_interactor: impl Fn(CellPoint) -> Interactor) {
+    // any_interactor: (normal, scroll)
+    pub fn update(&mut self, aspect: Aspect, window: &mut Window, any_interactor: impl Fn(CellPoint) -> (Interactor, Interactor)) {
         let current_state = Mouse::current_state(aspect, window, &any_interactor);
 
         if let None = current_state {
@@ -59,18 +65,23 @@ impl Mouse {
         self.new = current_state;
 
         use MouseEvent::*;
+
         match (self.old, self.new) {
             (None, None) => {}
             (None, Some(_)) => {}
             (Some(_), None) => {}
             (Some(old), Some(new)) => {
+                if let Some((_, scroll_y)) = window.get_scroll_wheel() {
+                    self.scroll_wheel.at(&mut self.events, new.cell_xy, scroll_y, &|p| any_interactor(p).1);
+                }
+
                 for mb in MouseButton::ALL {
                     if new.down[mb] && !old.down[mb] {
                         self.events.push_back(Click(mb, new.cell_xy, new.interactor));
                         self.drag[mb].down(new.cell_xy);
                     }
 
-                    self.drag[mb].at(&mut self.events, mb, new.cell_xy, &any_interactor);
+                    self.drag[mb].at(&mut self.events, mb, new.cell_xy, &|p| any_interactor(p).0);
 
                     if !new.down[mb] && old.down[mb] {
                         self.events.push_back(Up(mb, new.cell_xy, new.interactor));
@@ -81,7 +92,8 @@ impl Mouse {
         }
     }
 
-    fn current_state(aspect: Aspect, window: &mut Window, get_interactor: &impl Fn(CellPoint) -> Interactor) -> Option<State> {
+    // normal interactor, scroll itneractor
+    fn current_state(aspect: Aspect, window: &mut Window, get_interactor: &impl Fn(CellPoint) -> (Interactor, Interactor)) -> Option<State> {
         // NYEO NOTE: The logic in minifb to compensate for DPI scaling is wrong.
         // This logic is correct, however.
         let mouse_pos = if let Some(mp) = window.get_unscaled_mouse_pos(MouseMode::Pass) { 
@@ -93,13 +105,15 @@ impl Mouse {
         
         let cell_xy = point2(mouse_x_ideal, mouse_y_ideal);
 
+        let interactors = get_interactor(cell_xy);
+
         Some(State { 
             down: enum_map::enum_map![
                 MouseButton::Left => window.get_mouse_down(MinifbMouseButton::Left),
                 MouseButton::Right => window.get_mouse_down(MinifbMouseButton::Right),
             ],
             cell_xy,
-            interactor: get_interactor(cell_xy),
+            interactor: interactors.0,
         })
     }
 

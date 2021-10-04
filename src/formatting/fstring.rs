@@ -8,6 +8,7 @@ pub struct FChar {
     pub bg: Option<u8>,
     pub fg: Option<u8>,
     pub interactor: Option<InteractorFmt>,
+    pub scroll_interactor: Option<Interactor>,
     pub bevels: FBevels,
 }
 
@@ -18,6 +19,7 @@ impl FChar {
             bg: None,
             fg: None,
             interactor: None,
+            scroll_interactor: None,
             bevels: FBevels::new(),
         }
     }
@@ -29,6 +31,7 @@ impl FChar {
             bg: self.bg,
             fg: self.fg,
             interactor: self.interactor,
+            scroll_interactor: self.scroll_interactor,
             bevels: self.bevels,
         }
     }
@@ -45,6 +48,7 @@ pub struct FSem {
     pub bg: Option<u8>,
     pub fg: Option<u8>,
     pub interactor: Option<InteractorFmt>, // if None, then don't _change_ the interactor
+    pub scroll_interactor: Option<Interactor>, // if None, then don't _change_ the interactor
     pub bevels: FBevels,
 }
 
@@ -55,6 +59,7 @@ impl FSem {
             bg: None,
             fg: None,
             interactor: None,
+            scroll_interactor: None,
             bevels: FBevels::new(),
         }
     }
@@ -65,6 +70,7 @@ impl FSem {
             bg: self.bg.or(below.bg),
             fg: self.fg.or(below.fg),
             interactor: self.interactor.or(below.interactor),
+            scroll_interactor: self.scroll_interactor.or(below.scroll_interactor),
             bevels: self.bevels.superimposed_on(below.bevels)
         }
     }
@@ -95,6 +101,10 @@ impl FSem {
         self
     }
 
+    pub fn scroll_interactor(mut self, interactor: Interactor) -> FSem {
+        self.scroll_interactor = Some(interactor);
+        self
+    }
     // TODO: Don't set bevels here? Probably use rectangle drawing etc and set internally
 }
 

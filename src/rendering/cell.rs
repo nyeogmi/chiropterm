@@ -8,6 +8,7 @@ pub struct CellContent {
 
     pub sem: SemanticContent,
     pub interactor: InteractorFmt, // interactor, mouseover color
+    pub scroll_interactor: Interactor,
 }
 
 #[derive(Clone, Copy, Debug)]

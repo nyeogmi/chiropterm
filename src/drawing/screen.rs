@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use crate::aliases::*;
+use crate::{Interactor, aliases::*};
 use crate::formatting::FSem;
 use crate::rendering::{Bevels, CellContent, InteractorFmt, SemanticContent};
 
@@ -22,7 +22,9 @@ impl Screen {
             || Cell::new(CellContent {
                 bg, fg, 
                 bevels: Bevels::new(),
-                sem: SemanticContent::Blank, interactor: InteractorFmt::none(),
+                sem: SemanticContent::Blank, 
+                interactor: InteractorFmt::none(),
+                scroll_interactor: Interactor::none(),
             })
         )}
     }
@@ -36,6 +38,7 @@ impl Screen {
                 c.bevels = Bevels::new();
                 c.sem = SemanticContent::Blank;
                 c.interactor = InteractorFmt::none();
+                c.scroll_interactor = Interactor::none();
                 c
             });
         }
@@ -48,7 +51,9 @@ impl Screen {
             rect(0, 0, sz.width, sz.height), 
             || Cell::new(CellContent {
                 bg, fg, 
-                sem: SemanticContent::Blank, interactor: InteractorFmt::none(),
+                sem: SemanticContent::Blank, 
+                interactor: InteractorFmt::none(),
+                scroll_interactor: Interactor::none(),
                 bevels: Bevels::new(),
             })
         )
@@ -70,6 +75,7 @@ impl Brushable for Screen {
             f.bevels.update(&mut c.bevels);
             if let Some(sprite) = f.sem { c.sem = sprite; }
             if let Some(interactor) = f.interactor { c.interactor = interactor; }
+            if let Some(scroll_interactor) = f.scroll_interactor { c.scroll_interactor = scroll_interactor; }
             c
         });
     }

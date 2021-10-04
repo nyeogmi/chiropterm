@@ -254,7 +254,7 @@ impl Preformatter {
                     fg = arg_value
                 }
             } else {
-                fs.push(FChar { bg, fg, sprite: Some(cp437::encode_char(c) as u16), interactor: None, bevels: FBevels::new() });
+                fs.push(FChar { bg, fg, sprite: Some(cp437::encode_char(c) as u16), interactor: None, scroll_interactor: None, bevels: FBevels::new() });
             }
         }
     }

@@ -1,7 +1,7 @@
 use enum_map::Enum;
 use crate::{CellVector, aliases::CellPoint, rendering::Interactor};
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum InputEvent {
     Mouse(MouseEvent),
     Keyboard(KeyEvent),
@@ -18,7 +18,7 @@ impl InputEvent {
     }
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MouseEvent {
     Click(MouseButton, CellPoint, Interactor),
     Up(MouseButton, CellPoint, Interactor),
@@ -31,6 +31,7 @@ pub enum MouseEvent {
         now_point: CellPoint,
         now_interactor: Interactor
     },
+    Scroll(f32, CellPoint, Interactor),
     // wheel?
 }
 
@@ -54,6 +55,8 @@ impl MouseEvent {
                     now_point: now_point + vec, now_interactor,
                 }
             }
+            MouseEvent::Scroll(amt, cp, int) => 
+                MouseEvent::Scroll(amt, cp + vec, int),
         }
     }
 }
