@@ -174,6 +174,13 @@ impl<'a> Brush<'a> {
         b.cursor = point2(0, 0);
         b
     }
+
+    pub fn offset_rect(&self, offset: CellVector) -> Self {
+        let mut b = self.clone();
+        b.rect = b.rect.translate(offset);
+        b.cursor_offset += offset;
+        b
+    }
 }
 
 impl<'a> Brushable for Brush<'a> {
