@@ -106,9 +106,9 @@ impl KeyCorrelator {
                         char: Some(c),
                     }
                 } else if age > FRAMES_UNTIL_GIVEUP {
-                    if let Some(code) = most_likely_keycode(c) {
+                    if let Some(_code) = most_likely_keycode(c) {
                         KeyEvent {
-                            code,
+                            code: Keycode::Unknown,  // ignore the most likely keycode -- just use that logic to make sure it's a key that likely exists on the keyboard
                             shift: false,
                             control: false,
                             retriggered: false,
