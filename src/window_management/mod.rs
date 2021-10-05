@@ -3,13 +3,14 @@ mod keyboard;
 mod math;
 mod menu;
 mod mouse;
+mod redraw_tracking_screen;
 
 use euclid::size2;
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
 use crate::{drawing::Screen, rendering::{self, Interactor, Render, Swatch}, window_management::keyboard::Keyboard};
 
-use self::{math::{calculate_aspect, default_window_size}, mouse::Mouse};
+use self::{math::{calculate_aspect, default_window_size}, mouse::Mouse, redraw_tracking_screen::RedrawTrackingScreen};
 pub(crate) use self::math::Aspect;
 
 pub use menu::{Menu, Signal};
@@ -35,7 +36,7 @@ pub struct IO {
     // renderer state
     buffer: Vec<u32>,
     swatch: Swatch,
-    screen: Screen,  // TODO: Make private again later
+    screen: RedrawTrackingScreen,  
 
     // evt loop default hooks
     default_on_exit: fn(&mut IO),
@@ -73,7 +74,7 @@ impl IO {
             
             window: None, keyboard: Keyboard::new(), mouse: Mouse::new(),
             
-            buffer: vec![], swatch, screen: Screen::new(swatch.default_bg, swatch.default_fg),
+            buffer: vec![], swatch, screen: RedrawTrackingScreen::new(swatch.default_bg, swatch.default_fg),
             default_on_exit,
         }
     }
@@ -117,7 +118,7 @@ impl IO {
     pub fn getch(&mut self, mut on_redraw: impl FnMut(&Screen)) -> InputEvent {
         let mut inp = None;
         self.wait(EventLoop {
-            on_redraw: Box::new(|io| { on_redraw(&io.screen) }),
+            on_redraw: Box::new(|io| { on_redraw(io.screen.target()) }),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, i| { inp = Some(i); Resume::PopEvtLoop }),
@@ -145,7 +146,7 @@ impl IO {
         let menu = Menu::new();
         let mut cmd = None;
         self.wait(EventLoop {
-            on_redraw: Box::new(|io| { on_redraw(&io.screen, menu.share()) }),
+            on_redraw: Box::new(|io| { on_redraw(io.screen.target(), menu.share()) }),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, i| { 
@@ -162,7 +163,7 @@ impl IO {
         // TODO: Clear clicks and keys if we're sleeping
         let mut frame = 0;
         self.wait(EventLoop {
-            on_redraw: Box::new(|io| on_redraw(&io.screen)),
+            on_redraw: Box::new(|io| on_redraw(io.screen.target())),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, __| Resume::NotYet),
@@ -200,7 +201,7 @@ impl IO {
             let needs_virtual_redraw = iteration == 0 || aspect_changed;
 
             if needs_virtual_redraw {
-                self.screen.clear();
+                self.screen.switch();
                 (evt.on_redraw)(self);
             }
 
@@ -210,7 +211,7 @@ impl IO {
             let win = self.window.as_mut().unwrap();
             self.keyboard.add_pressed_keys(win);
             self.keyboard.correlate();
-            let cells = &self.screen.cells;
+            let cells = &self.screen.target().cells;
             self.mouse.update(aspect, win, |xy| 
                 cells.get(xy).map(|i| (i.get().interactor.interactor, i.get().scroll_interactor))
                 .unwrap_or((Interactor::none(), Interactor::none()))
@@ -249,11 +250,13 @@ impl IO {
 
     fn draw(&mut self, aspect: Aspect, interactor: Interactor) {
         self.frame += 1;
-        Render { 
-            aspect, 
-            buffer: &mut self.buffer, 
-            swatch: self.swatch,
-            screen: &self.screen,
-        }.draw(interactor)
+        self.screen.draw(
+            Render { 
+                aspect, 
+                swatch: self.swatch,
+                interactor,
+            }, 
+            &mut self.buffer
+        )
     }
 }

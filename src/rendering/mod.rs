@@ -1,5 +1,5 @@
 mod cell;
-mod font;
+pub(crate) mod font;
 mod renderer;
 mod sprite;
 #[allow(non_upper_case_globals)]

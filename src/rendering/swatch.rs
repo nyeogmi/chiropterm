@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Swatch {
     pub colors: [u32; 0x100],
     pub default_bg: u8,
