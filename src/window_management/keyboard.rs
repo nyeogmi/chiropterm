@@ -19,13 +19,22 @@ impl Keyboard {
         window.set_input_callback(Box::new(KeyCorrelatorRef(Rc::clone(&self.correlator.0))))
     }
 
-    pub fn add_pressed_keys(&mut self, window: &mut Window) {
-        if let Some(pressed) = window.get_keys_pressed(KeyRepeat::Yes) {
+    pub fn add_pressed_keys(&mut self, window: &mut Window, is_new_tick: bool) {
+        if let Some(pressed) = window.get_keys_pressed(KeyRepeat::No) {  
             let mut corr = self.correlator.0.borrow_mut();
             let shift = window.is_key_down(MinifbKey::LeftShift) || window.is_key_down(MinifbKey::RightShift);
             let control = window.is_key_down(MinifbKey::LeftCtrl) || window.is_key_down(MinifbKey::RightCtrl);
             for &key in pressed.iter() {
                 corr.minifb_keys.push_back(ModalMinifbKey { shift, control, key });
+            }
+
+            if is_new_tick {
+                if let Some(down) = window.get_keys() {
+                    for &key in down.iter() {
+                        if pressed.contains(&key) { continue; } // not retriggered! just triggered normally
+                        corr.retriggered_keys.push_back(ModalMinifbKey { shift, control, key });
+                    }
+                }
             }
         }
     }
@@ -51,6 +60,7 @@ impl minifb::InputCallback for KeyCorrelatorRef {
 struct KeyCorrelator {
     utf32_keys: VecDeque<(u32, u8)>,  // keycode, age in frames
     minifb_keys: VecDeque<ModalMinifbKey>,
+    retriggered_keys: VecDeque<ModalMinifbKey>,
     events: VecDeque<KeyEvent>,
 }
 
@@ -66,6 +76,7 @@ impl KeyCorrelator {
         KeyCorrelator {
             utf32_keys: VecDeque::new(),
             minifb_keys: VecDeque::new(),
+            retriggered_keys: VecDeque::new(),
             events: VecDeque::new(),
         }
     }
@@ -91,6 +102,7 @@ impl KeyCorrelator {
                         code: minifb_to_keycode(existing.key).or(most_likely_keycode(c)).unwrap_or(Keycode::Unknown),
                         shift: existing.shift,
                         control: existing.control,
+                        retriggered: false,
                         char: Some(c),
                     }
                 } else if age > FRAMES_UNTIL_GIVEUP {
@@ -99,6 +111,7 @@ impl KeyCorrelator {
                             code,
                             shift: false,
                             control: false,
+                            retriggered: false,
                             char: Some(c),
                         }
                     } else {
@@ -114,19 +127,26 @@ impl KeyCorrelator {
 
         while let Some(mmk) = self.minifb_keys.pop_front() {
             if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
-                /*
-                if chiropt_keycode.needs_correlation() {
-                    self.minifb_keys.push_front(mmk);
-                    break; // wait for the utf32 stream to catch up
-                }
-                */
                 self.events.push_back(censor_unhelpful_features(KeyEvent {
                     code: chiropt_keycode,
                     shift: mmk.shift,
                     control: mmk.control,
-                    // char: most_likely_char(chiropt_keycode),
+                    retriggered: false,
                     char: None,
                 }))
+            }
+        }
+
+        while let Some(mmk) = self.retriggered_keys.pop_front() {
+            // don't censor -- we already want key to be done
+            if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
+                self.events.push_back(KeyEvent { 
+                    code: chiropt_keycode, 
+                    shift: mmk.shift, 
+                    control: mmk.control, 
+                    retriggered: true,
+                    char: None 
+                })
             }
         }
     }

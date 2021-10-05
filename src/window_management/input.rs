@@ -78,6 +78,7 @@ pub struct KeyEvent {
     pub code: Keycode,  // TODO: Provide a KeyCode enum
     pub shift: bool,
     pub control: bool,
+    pub retriggered: bool,  // by being held at the end of a frame
     pub char: Option<char>,
 }
 

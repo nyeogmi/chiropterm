@@ -233,7 +233,7 @@ impl IO {
 
             // now keyboard etc
             let win = self.window.as_mut().unwrap();
-            self.keyboard.add_pressed_keys(win);
+            self.keyboard.add_pressed_keys(win, is_new_tick);
             self.keyboard.correlate();
             let cells = &self.screen.target().cells;
             self.mouse.update(aspect, win, |xy| 
