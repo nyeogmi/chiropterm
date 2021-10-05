@@ -229,13 +229,17 @@ impl IO {
 
             let needs_physical_redraw = iteration == 0 || aspect_changed || window_changed || needs_virtual_redraw || interactor_changed;
             if needs_physical_redraw || iteration % REDRAW_EVERY == 0  {
-                self.draw(aspect, self.mouse.interactor());
+                let touched = self.draw(aspect, self.mouse.interactor());
 
                 let win = self.window.as_mut().unwrap();
-                // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
-                win
-                    .update_with_buffer(&self.buffer, aspect.buf_size.width as usize, aspect.buf_size.height as usize)
-                    .unwrap();
+                if touched {
+                    // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
+                    win
+                        .update_with_buffer(&self.buffer, aspect.buf_size.width as usize, aspect.buf_size.height as usize)
+                        .unwrap();
+                } else {
+                    win.update()
+                }
             } else {
                 let win = self.window.as_mut().unwrap();
                 win.update()
@@ -248,7 +252,8 @@ impl IO {
         }
     }
 
-    fn draw(&mut self, aspect: Aspect, interactor: Interactor) {
+    // bool: "was it touched?"
+    fn draw(&mut self, aspect: Aspect, interactor: Interactor) -> bool {
         self.frame += 1;
         self.screen.draw(
             Render { 
