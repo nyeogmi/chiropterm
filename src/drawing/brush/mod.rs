@@ -76,6 +76,9 @@ impl<'a> Brush<'a> {
     pub fn rect(&self) -> CellRect { self.rect }
     pub fn clip(&self) -> CellRect { self.clip } 
     pub fn cursor_offset(&self) -> CellVector { self.cursor_offset }  
+    pub fn shifted_clip(&self) -> CellRect {
+        self.clip().translate(-self.cursor_offset)
+    }
 
     pub fn shift(&self, amt: CellVector) -> Self {
         let mut b = self.clone();
@@ -202,6 +205,7 @@ impl<'a> Brush<'a> {
         b.cursor_offset += offset;
         b
     }
+
 }
 
 impl<'a> Brushable for Brush<'a> {
