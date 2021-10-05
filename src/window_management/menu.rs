@@ -23,11 +23,19 @@ impl<'a> Menu<'a> {
     }
 
     pub fn on(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> Signal) -> Interactor {
-        self.state.on(k, cb)
+        self.state.on(k, cb, false)
+    }
+
+    pub fn on_hprio(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> Signal) -> Interactor {
+        self.state.on(k, cb, true)
     }
 
     pub fn on_key(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> Signal) {
-        self.state.on_key(k, cb)
+        self.state.on_key(k, cb, false)
+    }
+
+    pub fn on_key_hprio(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> Signal) {
+        self.state.on_key(k, cb, true)
     }
 
     pub fn on_click(&self, cb: impl 'a+FnMut(MouseEvent) -> Signal) -> Interactor {
@@ -35,7 +43,11 @@ impl<'a> Menu<'a> {
     }
 
     pub fn on_text(&self, cb: impl 'a+FnMut(char) -> Signal) {
-        self.state.on_text(cb)
+        self.state.on_text(cb, false)
+    }
+
+    pub fn on_text_hprio(&self, cb: impl 'a+FnMut(char) -> Signal) {
+        self.state.on_text(cb, true)
     }
 
     pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal> {
@@ -45,7 +57,8 @@ impl<'a> Menu<'a> {
 
 pub struct MenuState<'a> {
     handlers: RefCell<Vec<Handler<'a>>>,
-    key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
+    hprio_key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
+    lprio_key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
     // TODO: Key handlers again
 }
 
@@ -53,18 +66,23 @@ impl<'a> MenuState<'a> {
     pub fn new() -> MenuState<'a> {
         MenuState {
             handlers: RefCell::new(vec![]),
-            key_recognizers: RefCell::new(vec![]),
+            hprio_key_recognizers: RefCell::new(vec![]),
+            lprio_key_recognizers: RefCell::new(vec![]),
         }
     }
 
     // combines on_key and on_click
-    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent) -> Signal) -> Interactor {
+    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent) -> Signal, high_prio: bool) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| { cb(input) })));
         let interactor = Interactor::from_index(ix);
         // TODO: Distinguish X and ctrl-X
-        let mut krcg = self.key_recognizers.borrow_mut();
+        let mut krcg = if high_prio {
+            self.hprio_key_recognizers.borrow_mut()
+        } else {
+            self.lprio_key_recognizers.borrow_mut()
+        };
         krcg.push(KeyRecognizer(Box::new(move |key| {
             if key.code == k { return interactor }
             Interactor::none()
@@ -72,7 +90,7 @@ impl<'a> MenuState<'a> {
         interactor
     }
 
-    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> Signal) {
+    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> Signal, high_prio: bool) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -83,7 +101,11 @@ impl<'a> MenuState<'a> {
         })));
         let interactor = Interactor::from_index(ix);
         // TODO: Distinguish X and ctrl-X
-        let mut krcg = self.key_recognizers.borrow_mut();
+        let mut krcg = if high_prio {
+            self.hprio_key_recognizers.borrow_mut()
+        } else {
+            self.lprio_key_recognizers.borrow_mut()
+        };
         krcg.push(KeyRecognizer(Box::new(move |key| {
             if key.code == k { return interactor }
             Interactor::none()
@@ -102,7 +124,7 @@ impl<'a> MenuState<'a> {
         Interactor::from_index(ix)
     }
 
-    pub fn on_text(&self, mut cb: impl 'a+FnMut(char) -> Signal) {
+    pub fn on_text(&self, mut cb: impl 'a+FnMut(char) -> Signal, high_prio: bool) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -112,7 +134,11 @@ impl<'a> MenuState<'a> {
             }
         })));
         let interactor = Interactor::from_index(ix);
-        let mut krcg = self.key_recognizers.borrow_mut();
+        let mut krcg = if high_prio {
+            self.hprio_key_recognizers.borrow_mut()
+        } else {
+            self.lprio_key_recognizers.borrow_mut()
+        };
         krcg.push(KeyRecognizer(Box::new(move |key| {
             if let Some(_) = key.char { return interactor; }
             Interactor::none()
@@ -122,8 +148,7 @@ impl<'a> MenuState<'a> {
     pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal> {
         match i {
             InputEvent::Keyboard(k) => { 
-                let kcrg = self.key_recognizers.borrow();
-                for rec in kcrg.iter() {
+                for rec in self.hprio_key_recognizers.borrow().iter().chain(self.lprio_key_recognizers.borrow().iter()) {
                     let interactor = (rec.0)(k);
                     if let Some(ix) = interactor.index() {
                         let mut hnd = self.handlers.borrow_mut();
