@@ -53,7 +53,7 @@ impl Mouse {
     }
 
     // any_interactor: (normal, scroll)
-    pub fn update(&mut self, aspect: Aspect, window: &mut Window, any_interactor: impl Fn(CellPoint) -> (Interactor, Interactor)) {
+    pub fn update(&mut self, aspect: Aspect, window: &mut Window, new_tick: bool, any_interactor: impl Fn(CellPoint) -> (Interactor, Interactor)) {
         let current_state = Mouse::current_state(aspect, window, &any_interactor);
 
         if let None = current_state {
@@ -81,11 +81,15 @@ impl Mouse {
                         self.drag[mb].down(new.cell_xy);
                     }
 
-                    self.drag[mb].at(&mut self.events, mb, new.cell_xy, &|p| any_interactor(p).0);
+                    self.drag[mb].at(new.cell_xy);
 
                     if !new.down[mb] && old.down[mb] {
                         self.events.push_back(Up(mb, new.cell_xy, new.interactor));
-                        self.drag[mb].up()  // TODO: Maybe just do this whenever !new.down?
+                        self.drag[mb].up(&mut self.events, mb, &|p| any_interactor(p).0)  // TODO: Maybe just do this whenever !new.down?
+                    }
+
+                    if new_tick {
+                        self.drag[mb].post_events(&mut self.events, mb, &|p| any_interactor(p).0)
                     }
                 }
             }

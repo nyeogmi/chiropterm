@@ -106,13 +106,20 @@ impl KeyCorrelator {
                         char: Some(c),
                     }
                 } else if age > FRAMES_UNTIL_GIVEUP {
-                    if let Some(_code) = most_likely_keycode(c) {
+                    if let Some(theoretical_code) = most_likely_keycode(c) {
+                        let (code, char) = if allow_hotkey_from_text(theoretical_code)  { 
+                            (theoretical_code, None)
+                        } else {
+                            // ignore the most likely keycode -- 
+                            // it is likely a hotkey we do not want to retrigger
+                            (Keycode::Unknown, Some(c))
+                        };
                         KeyEvent {
-                            code: Keycode::Unknown,  // ignore the most likely keycode -- just use that logic to make sure it's a key that likely exists on the keyboard
+                            code,  
                             shift: false,
                             control: false,
                             retriggered: false,
-                            char: Some(c),
+                            char,
                         }
                     } else {
                         continue
@@ -127,6 +134,10 @@ impl KeyCorrelator {
 
         while let Some(mmk) = self.minifb_keys.pop_front() {
             if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
+                if allow_hotkey_from_text(chiropt_keycode) { 
+                    // we get it from text, so don't get it from minifb
+                    continue 
+                }
                 self.events.push_back(censor_unhelpful_features(KeyEvent {
                     code: chiropt_keycode,
                     shift: mmk.shift,
@@ -140,6 +151,8 @@ impl KeyCorrelator {
         while let Some(mmk) = self.retriggered_keys.pop_front() {
             // don't censor -- we already want key to be done
             if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
+                if exempt_from_retriggering(chiropt_keycode) { continue; }
+
                 self.events.push_back(KeyEvent { 
                     code: chiropt_keycode, 
                     shift: mmk.shift, 
@@ -149,6 +162,20 @@ impl KeyCorrelator {
                 })
             }
         }
+    }
+}
+
+fn allow_hotkey_from_text(theoretical_code: Keycode) -> bool {
+    match theoretical_code {
+        Keycode::Backspace => true,
+        _ => false,
+    }
+}
+
+fn exempt_from_retriggering(chiropt_keycode: Keycode) -> bool {
+    match chiropt_keycode {
+        Keycode::Backspace | Keycode::Delete => true,
+        _ => false
     }
 }
 
@@ -284,6 +311,7 @@ fn most_likely_keycode(c: char) -> Option<Keycode> {
         '/' => Slash, '\n' => Enter, '\r' => Enter,
 
         ' ' => Space, '\t' => Tab,
+        '\u{08}' => Backspace,
         _ => return None,
     })
 }

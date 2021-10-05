@@ -236,7 +236,7 @@ impl IO {
             self.keyboard.add_pressed_keys(win, is_new_tick);
             self.keyboard.correlate();
             let cells = &self.screen.target().cells;
-            self.mouse.update(aspect, win, |xy| 
+            self.mouse.update(aspect, win, is_new_tick, |xy| 
                 cells.get(xy).map(|i| (i.get().interactor.interactor, i.get().scroll_interactor))
                 .unwrap_or((Interactor::none(), Interactor::none()))
             );
