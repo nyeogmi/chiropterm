@@ -27,12 +27,12 @@ fn main() {
             content_box.fill(FSem::new().bg(ramp_bg[1]));
             content_box.bevel_w95_sleek((ramp_bg[0], ramp_bg[3]));
 
-            let interactor_one = menu.on(Keycode::B, |k| {
+            let interactor_one = menu.on_click(|k| {
                 println!("hit (1) {:?}", k);
                 Signal::Break
             });
 
-            let interactor_two = menu.on(Keycode::C, |k| {
+            let interactor_two = menu.on_click(|k| {
                 println!("hit (2) {:?}", k);
                 Signal::Continue
             });

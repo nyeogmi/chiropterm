@@ -22,14 +22,6 @@ impl<'a> Menu<'a> {
         Menu { state: self.state.clone() }
     }
 
-    pub fn on(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> Signal) -> Interactor {
-        self.state.on(k, cb, false)
-    }
-
-    pub fn on_hprio(&self, k: Keycode, cb: impl 'a+FnMut(InputEvent) -> Signal) -> Interactor {
-        self.state.on(k, cb, true)
-    }
-
     pub fn on_key(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> Signal) {
         self.state.on_key(k, cb, false)
     }
@@ -57,6 +49,7 @@ impl<'a> Menu<'a> {
 
 pub struct MenuState<'a> {
     handlers: RefCell<Vec<Handler<'a>>>,
+    on_tick: RefCell<Option<Handler<'a>>>,
     hprio_key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
     lprio_key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
     // TODO: Key handlers again
@@ -66,28 +59,10 @@ impl<'a> MenuState<'a> {
     pub fn new() -> MenuState<'a> {
         MenuState {
             handlers: RefCell::new(vec![]),
+            on_tick: RefCell::new(None),
             hprio_key_recognizers: RefCell::new(vec![]),
             lprio_key_recognizers: RefCell::new(vec![]),
         }
-    }
-
-    // combines on_key and on_click
-    pub fn on(&self, k: Keycode, mut cb: impl 'a+FnMut(InputEvent) -> Signal, high_prio: bool) -> Interactor {
-        let mut hndl = self.handlers.borrow_mut();
-        let ix = hndl.len();
-        hndl.push(Handler(Box::new(move |input| { cb(input) })));
-        let interactor = Interactor::from_index(ix);
-        // TODO: Distinguish X and ctrl-X
-        let mut krcg = if high_prio {
-            self.hprio_key_recognizers.borrow_mut()
-        } else {
-            self.lprio_key_recognizers.borrow_mut()
-        };
-        krcg.push(KeyRecognizer(Box::new(move |key| {
-            if key.code == k { return interactor }
-            Interactor::none()
-        })));
-        interactor
     }
 
     pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> Signal, high_prio: bool) {
@@ -147,6 +122,13 @@ impl<'a> MenuState<'a> {
 
     pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal> {
         match i {
+            InputEvent::Tick(_) => {
+                let mut on_tick = self.on_tick.borrow_mut();
+                if let Some(of) = on_tick.as_mut() {
+                    return Some((of.0)(i))
+                }
+                None
+            }
             InputEvent::Keyboard(k) => { 
                 for rec in self.hprio_key_recognizers.borrow().iter().chain(self.lprio_key_recognizers.borrow().iter()) {
                     let interactor = (rec.0)(k);

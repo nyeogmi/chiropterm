@@ -5,6 +5,8 @@ mod menu;
 mod mouse;
 mod redraw_tracking_screen;
 
+use std::time::{Instant};
+
 use euclid::size2;
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
@@ -18,13 +20,15 @@ pub use menu::{Menu, Signal};
 pub use self::math::AspectConfig;
 pub use input::*;
 
-const FRAMES_PER_SECOND: usize = 60;
-const TRUE_FRAME_DURATION: usize = 1660; // 600 FPS
-const REDRAW_EVERY: u64 = 10;   // practically 60 FPS
+const TICKS_PER_SECOND: usize = 15;
+const APPARENT_TICK_MICROSECONDS: u128 = 66666;  // 15 FPS
+const HANDLE_INPUT_EVERY: usize = 4166; // 240 FPS
 
 pub struct IO {
     // user vars
-    frame: u64,
+    iteration: u64,
+    tick: u64,
+    last_tick_at: Option<Instant>,
     window_title: String,
     aspect_config: AspectConfig,
 
@@ -47,7 +51,6 @@ struct EventLoop<'a> {
     on_exit: Box<dyn 'a+FnMut(&mut IO)>,
 
     on_input: Box<dyn 'a+FnMut(&mut IO, InputEvent) -> Resume>,
-    on_frame: Box<dyn 'a+FnMut(&mut IO) -> Resume>,
 }
 
 enum Resume {
@@ -70,7 +73,7 @@ impl IO {
         let swatch = *rendering::DEFAULT_SWATCH;
 
         IO { 
-            frame: 0, window_title, aspect_config,
+            iteration: 0, tick: 0, last_tick_at: None, window_title, aspect_config,
             
             window: None, keyboard: Keyboard::new(), mouse: Mouse::new(),
             
@@ -95,7 +98,7 @@ impl IO {
             panic!("{}", e); // TODO: Handle some errors
         });
         window.set_background_color(0, 0, 0); // TODO:
-        window.limit_update_rate(Some(std::time::Duration::from_micros(TRUE_FRAME_DURATION as u64)));
+        window.limit_update_rate(Some(std::time::Duration::from_micros(HANDLE_INPUT_EVERY as u64)));
         self.keyboard.monitor_minifb_utf32(&mut window);
         self.window = Some(window);
     }
@@ -115,14 +118,20 @@ impl IO {
         aspect
     }
 
-    pub fn getch(&mut self, mut on_redraw: impl FnMut(&Screen)) -> InputEvent {
+    pub fn getch(&mut self, mut on_redraw: impl FnMut(&Screen)) -> KeyEvent {
         let mut inp = None;
         self.wait(EventLoop {
             on_redraw: Box::new(|io| { on_redraw(io.screen.target()) }),
             on_exit: Box::new(self.default_on_exit),
 
-            on_input: Box::new(|_, i| { inp = Some(i); Resume::PopEvtLoop }),
-            on_frame: Box::new(|_| Resume::NotYet),
+            on_input: Box::new(|_, i| { 
+                if let InputEvent::Keyboard(k) = i {
+                    inp = Some(k); 
+                    Resume::PopEvtLoop 
+                } else {
+                    Resume::NotYet
+                }
+            }),
         });
         inp.unwrap()
     }
@@ -153,7 +162,6 @@ impl IO {
                 if let Some(x) = menu.handle(i) { cmd = Some(x); return Resume::PopEvtLoop; }
                 Resume::NotYet
             }),
-            on_frame: Box::new(|_| Resume::NotYet),
         });
         cmd.unwrap()
     }
@@ -161,17 +169,21 @@ impl IO {
 
     pub fn sleep(&mut self, time: f64, mut on_redraw: impl FnMut(&Screen)) {
         // TODO: Clear clicks and keys if we're sleeping
-        let mut frame = 0;
+        let mut tick = 0;
         self.wait(EventLoop {
             on_redraw: Box::new(|io| on_redraw(io.screen.target())),
             on_exit: Box::new(self.default_on_exit),
 
-            on_input: Box::new(|_, __| Resume::NotYet),
-            on_frame: Box::new(|_| {
-                if frame as f64 / FRAMES_PER_SECOND as f64 > time {
-                    return Resume::PopEvtLoop;
+            on_input: Box::new(|_, i| {
+                match i {
+                    InputEvent::Tick(_) => {
+                        if tick as f64 / TICKS_PER_SECOND as f64 > time {
+                            return Resume::PopEvtLoop;
+                        }
+                        tick += 1;
+                    }
+                    _ => {}
                 }
-                frame += 1;
                 Resume::NotYet
             }),
         });
@@ -179,7 +191,10 @@ impl IO {
 
     fn wait<'a>(&mut self, mut evt: EventLoop<'a>) {
         let mut old_aspect = None;
-        'main: for iteration in 0 as u64.. {
+
+        'main: for iter_here in self.iteration as u64.. {
+            self.iteration = iter_here;
+
             let mut window_changed: bool = false;
             if let None = self.window { self.reconstitute_window(); window_changed = true }
             let aspect = self.reconstitute_buffer();  
@@ -198,16 +213,25 @@ impl IO {
 
             // redraw (virtually)
             self.screen.resize(aspect.term_size.cast());
-            let needs_virtual_redraw = iteration == 0 || aspect_changed;
+            let needs_virtual_redraw = aspect_changed;
 
             if needs_virtual_redraw {
                 self.screen.switch();
                 (evt.on_redraw)(self);
             }
 
-            // check events
-            handle_resume!('main, (evt.on_frame)(self));
+            // check events, starting with ticks
+            let now = Instant::now();
+            let is_new_tick = if let Some(lfa) = self.last_tick_at {
+                now.duration_since(lfa).as_micros() > APPARENT_TICK_MICROSECONDS
+            } else { true };
+            if is_new_tick {
+                self.tick += 1;
+                handle_resume!('main, (evt.on_input)(self, InputEvent::Tick(self.tick)));
+                self.last_tick_at = Some(now);
+            }
 
+            // now keyboard etc
             let win = self.window.as_mut().unwrap();
             self.keyboard.add_pressed_keys(win);
             self.keyboard.correlate();
@@ -227,8 +251,8 @@ impl IO {
 
             let interactor_changed = self.mouse.interactor_changed();
 
-            let needs_physical_redraw = iteration == 0 || aspect_changed || window_changed || needs_virtual_redraw || interactor_changed;
-            if needs_physical_redraw || iteration % REDRAW_EVERY == 0  {
+            let needs_physical_redraw = aspect_changed || window_changed || needs_virtual_redraw || interactor_changed;
+            if needs_physical_redraw {
                 let touched = self.draw(aspect, self.mouse.interactor());
 
                 let win = self.window.as_mut().unwrap();
@@ -254,7 +278,6 @@ impl IO {
 
     // bool: "was it touched?"
     fn draw(&mut self, aspect: Aspect, interactor: Interactor) -> bool {
-        self.frame += 1;
         self.screen.draw(
             Render { 
                 aspect, 

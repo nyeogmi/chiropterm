@@ -3,6 +3,7 @@ use crate::{CellVector, aliases::CellPoint, rendering::Interactor};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum InputEvent {
+    Tick(u64),
     Mouse(MouseEvent),
     Keyboard(KeyEvent),
 }
@@ -12,6 +13,7 @@ impl InputEvent {
         use InputEvent::*;
 
         match self {
+            Tick(u) => Tick(*u),
             Mouse(me) => Mouse(me.offset(vec)),
             Keyboard(kb) => Keyboard(*kb),
         }
