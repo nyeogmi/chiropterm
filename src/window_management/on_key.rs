@@ -14,7 +14,10 @@ impl OnKey {
         OnKey { keycode, control: false, shift: false, }
     }
 
-    fn match_for(&self, combo: KeyCombo) -> bool {
+    fn match_for(&self, combo: Option<KeyCombo>) -> bool {
+        let combo = if let Some(c) = combo { c }
+        else { return false };
+
         self.keycode == combo.code && 
         self.control == combo.control &&
         self.shift == combo.shift
@@ -25,9 +28,8 @@ impl OnKey {
             if !self.match_for(key.get_combo()) { return false }
             match key {
                 crate::KeyEvent::Press(_) => true,
-                crate::KeyEvent::Retrigger(_) => false,
                 crate::KeyEvent::Release(_) => true,
-                crate::KeyEvent::Type(_, _) => false,
+                crate::KeyEvent::Type(_) => false,
             }
         }))
     }
@@ -37,9 +39,8 @@ impl OnKey {
             if !self.match_for(key.get_combo()) { return false }
             match key {
                 crate::KeyEvent::Press(_) => true,
-                crate::KeyEvent::Retrigger(_) => false,
                 crate::KeyEvent::Release(_) => false,
-                crate::KeyEvent::Type(_, _) => false,
+                crate::KeyEvent::Type(_) => false,
             }
         }))
     }
@@ -49,9 +50,8 @@ impl OnKey {
             if !self.match_for(key.get_combo()) { return false }
             match key {
                 crate::KeyEvent::Press(_) => true,
-                crate::KeyEvent::Retrigger(_) => true,
                 crate::KeyEvent::Release(_) => false,
-                crate::KeyEvent::Type(_, _) => false,
+                crate::KeyEvent::Type(_) => false,
             }
         }))
     }
@@ -61,9 +61,8 @@ impl OnKey {
             if !self.match_for(key.get_combo()) { return false }
             match key {
                 crate::KeyEvent::Press(_) => false,
-                crate::KeyEvent::Retrigger(_) => false,
                 crate::KeyEvent::Release(_) => true,
-                crate::KeyEvent::Type(_, _) => false,
+                crate::KeyEvent::Type(_) => false,
             }
         }))
     }

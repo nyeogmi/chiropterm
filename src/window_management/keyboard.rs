@@ -1,10 +1,8 @@
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use std::{cell::RefCell, collections::{BTreeMap, VecDeque}, rc::Rc};
 
-use minifb::{Key as MinifbKey, KeyRepeat, Window};
+use minifb::{Key as MinifbKey, Window};
 
 use super::{KeyCombo, input::{KeyEvent, Keycode}};
-
-const FRAMES_UNTIL_GIVEUP: u8 = 1; // give up on correlating utf32 characters after n frames
 
 pub(crate) struct Keyboard {
     correlator: KeyCorrelatorRef
@@ -19,41 +17,13 @@ impl Keyboard {
         window.set_input_callback(Box::new(KeyCorrelatorRef(Rc::clone(&self.correlator.0))))
     }
 
-    pub fn add_keys(&mut self, window: &mut Window, is_new_tick: bool) {
+    pub fn add_keys(&mut self, window: &mut Window) {
         // pressed keys
-        if let Some(pressed) = window.get_keys_pressed(KeyRepeat::No) {  
-            let mut corr = self.correlator.0.borrow_mut();
+        if let Some(keys_down) = window.get_keys() {  
             let shift = window.is_key_down(MinifbKey::LeftShift) || window.is_key_down(MinifbKey::RightShift);
             let control = window.is_key_down(MinifbKey::LeftCtrl) || window.is_key_down(MinifbKey::RightCtrl);
-            for &key in pressed.iter() {
-                corr.minifb_keys.push_back(ModalMinifbKey { shift, control, key });
-            }
-
-            // retriggered keys
-            if is_new_tick {
-                if let Some(down) = window.get_keys() {
-                    for &key in down.iter() {
-                        if pressed.contains(&key) { continue; } // not retriggered! just triggered normally
-                        corr.retriggered_keys.push_back(ModalMinifbKey { shift, control, key });
-                    }
-                }
-            }
+            self.correlator.0.borrow_mut().add_keys(&keys_down, shift, control);
         }
-
-        // released keys
-        if let Some(released) = window.get_keys_released() {
-            let mut corr = self.correlator.0.borrow_mut();
-            let shift = window.is_key_down(MinifbKey::LeftShift) || window.is_key_down(MinifbKey::RightShift);
-            let control = window.is_key_down(MinifbKey::LeftCtrl) || window.is_key_down(MinifbKey::RightCtrl);
-
-            for &key in released.iter() {
-                corr.released_keys.push_back(ModalMinifbKey { shift, control, key })
-            }
-        }
-    }
-
-    pub fn correlate(&self) {
-        self.correlator.0.borrow_mut().correlate()
     }
 
     pub fn getch(&mut self) -> Option<KeyEvent> {
@@ -65,213 +35,78 @@ struct KeyCorrelatorRef(Rc<RefCell<KeyCorrelator>>);
 
 impl minifb::InputCallback for KeyCorrelatorRef {
     fn add_char(&mut self, uni_char: u32) {
-        self.0.borrow_mut().utf32_keys.push_back((uni_char, 0))
+        self.0.borrow_mut().utf32_keys.push_back(uni_char)
     }
 }
 
 #[derive(Debug)]
 struct KeyCorrelator {
-    utf32_keys: VecDeque<(u32, u8)>,  // keycode, age in frames
-    minifb_keys: VecDeque<ModalMinifbKey>,
-    retriggered_keys: VecDeque<ModalMinifbKey>,
-    released_keys: VecDeque<ModalMinifbKey>,
+    utf32_keys: VecDeque<u32>,  // keycode, age in frames
+    keys_down: BTreeMap<MinifbKey, MinifbKeyMode>,
     events: VecDeque<KeyEvent>,
 }
 
 #[derive(Clone, Copy, Debug)]
-struct ModalMinifbKey {
+struct MinifbKeyMode {
     shift: bool,
     control: bool,
-    key: MinifbKey,
 }
 
 impl KeyCorrelator {
     fn new() -> Self {
         KeyCorrelator {
             utf32_keys: VecDeque::new(),
-            minifb_keys: VecDeque::new(),
-            retriggered_keys: VecDeque::new(),
-            released_keys: VecDeque::new(),
+            keys_down: BTreeMap::new(),
             events: VecDeque::new(),
         }
     }
 
-    fn correlate(&mut self) {
+    fn add_keys(&mut self, new_keys_down: &[MinifbKey], shift: bool, control: bool) {
         // TODO: Preserve order instead of always putting utf32 keys first?
-        while let Some((u, age)) = self.utf32_keys.pop_front() {
+        while let Some(u) = self.utf32_keys.pop_front() {
             let c = if let Some(c) = char::from_u32(u) { c } else {
                 continue // don't attempt to map utf32 gibberish
             };
 
-            // TODO: continue; if c is not representable in our display character set
-
-            let mut provider = self.minifb_keys.iter().position(|mmk| minifb_provides(*mmk, c, false));
-            if let None = provider {
-                provider = self.minifb_keys.iter().position(|mmk| minifb_provides(*mmk, c, true));
-            }
-
-            if let Some(i) = provider {
-                let existing = self.minifb_keys.remove(i).unwrap();
-                let code = minifb_to_keycode(existing.key).or(most_likely_keycode(c)).unwrap_or(Keycode::Unknown);
+            // see if this is a key where we infer a keycode from a typed character
+            if let Some(theoretical_code) = most_likely_keycode(c) {
                 self.events.push_back(censor_unhelpful_features(
-                    KeyEvent::Type(
-                        c,
-                        KeyCombo {
-                            code,
-                            shift: existing.shift,
-                            control: existing.control,
-                        },
-                    )
-                ));
-                self.events.push_back(censor_unhelpful_features(
-                    KeyEvent::Press(
-                        KeyCombo {
-                            code,
-                            shift: existing.shift,
-                            control: existing.control,
-                        },
-                    )
+                    KeyEvent::Press(KeyCombo {
+                        shift, control, code: theoretical_code,
+                    })
                 ))
-            } else if age > FRAMES_UNTIL_GIVEUP {
-                // see if we can guess the code
-                if let Some(theoretical_code) = most_likely_keycode(c) {
-                    // but only use the guessed code if we are allowed to infer it from text (as text has different retriggering rules)
-                    if allow_hotkey_from_text(theoretical_code)  { 
-                        // nice!!
-                        self.events.push_back(censor_unhelpful_features(
-                            KeyEvent::Press(KeyCombo {
-                                shift: false,
-                                control: false,
-                                code: theoretical_code,
-                            })
-                        ))
-                    }  else {
-                        // still have to type it!!
-                        self.events.push_back(censor_unhelpful_features(
-                            KeyEvent::Type(
-                                c, KeyCombo { shift: false, control: false, code: Keycode::Unknown, }
-                            )
-                        ));
-                    }
-                } else {
-                    continue
-                }
-            } else {
-                self.utf32_keys.push_front((u, age + 1)); // don't garble the order
-                break  // and skip out now
+            }  else {
+                // still have to type it!!
+                self.events.push_back(censor_unhelpful_features(
+                    KeyEvent::Type(c)
+                ));
             }
         }
 
-        while let Some(mmk) = self.minifb_keys.pop_front() {
-            if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
-                if allow_hotkey_from_text(chiropt_keycode) { 
-                    // we get it from text, so don't get it from minifb
-                    continue 
-                }
-                self.events.push_back(censor_unhelpful_features(KeyEvent::Press(KeyCombo {
-                    code: chiropt_keycode,
-                    shift: mmk.shift,
-                    control: mmk.control,
-                })))
+        for key in new_keys_down {
+            let code = if let Some(code) = minifb_to_keycode(*key) { code } else { continue };
+
+            if !self.keys_down.contains_key(key) {
+                // newly down
+                self.events.push_back(censor_unhelpful_features(
+                    KeyEvent::Press(KeyCombo { code, shift, control })
+                ));
             }
         }
+        for (key, details) in self.keys_down.iter() {
+            let code = if let Some(code) = minifb_to_keycode(*key) { code } else { continue };
 
-        while let Some(mmk) = self.retriggered_keys.pop_front() {
-            // don't censor -- we already want key to be done
-            if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
-                if exempt_from_retriggering(chiropt_keycode) { continue; }
-
-                self.events.push_back(KeyEvent::Retrigger(KeyCombo { 
-                    code: chiropt_keycode, 
-                    shift: mmk.shift, 
-                    control: mmk.control, 
-                }))
+            if !new_keys_down.contains(key) {
+                self.events.push_back(censor_unhelpful_features(
+                    KeyEvent::Release(KeyCombo { code, shift: details.shift, control: details.control })
+                ))
             }
         }
-
-        while let Some(mmk) = self.released_keys.pop_front() {
-            if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
-                self.events.push_back(KeyEvent::Release(KeyCombo {
-                    code: chiropt_keycode,
-                    shift: mmk.shift,
-                    control: mmk.control,
-                }))
-            }
+        self.keys_down.clear();
+        for key in new_keys_down {
+            self.keys_down.insert(*key, MinifbKeyMode { shift, control });
         }
     }
-}
-
-fn allow_hotkey_from_text(theoretical_code: Keycode) -> bool {
-    match theoretical_code {
-        Keycode::Backspace => true,
-        _ => false,
-    }
-}
-
-fn exempt_from_retriggering(chiropt_keycode: Keycode) -> bool {
-    match chiropt_keycode {
-        Keycode::Backspace | Keycode::Delete => true,
-        _ => false
-    }
-}
-
-fn minifb_provides(mmk: ModalMinifbKey, utf: char, desperate: bool) -> bool {
-    if !desperate {
-        if mmk.control {
-            return false
-        }
-    }
-
-    use MinifbKey::*;
-    match (mmk.key, utf.to_ascii_uppercase()) {
-        (Space, ' ') | (Tab, '\t') =>
-            return true,
-        (Enter, '\n') | (Enter, '\r') =>
-            return true,
-        (A, 'A') | (B, 'B') | (C, 'C') | (D, 'D') | (E, 'E') | (F, 'F') | (G, 'G') | (H, 'H') |
-        (I, 'I') | (J, 'J') | (K, 'K') | (L, 'L') | (M, 'M') | (N, 'N') | (O, 'O') | (P, 'P') |
-        (Q, 'Q') | (R, 'R') | (S, 'S') | (T, 'T') | (U, 'U') | (V, 'V') | (W, 'W') | (X, 'X') |
-        (Y, 'Y') | (Z, 'Z') => 
-            return true,
-        (Key0, '0') | (Key1, '1') | (Key2, '2') | (Key3, '3') | (Key4, '4') | 
-        (Key5, '5') | (Key6, '6') | (Key7, '7') | (Key8, '8') | (Key9, '9') => 
-            return true,
-        (Apostrophe, '\'') | (Backquote, '`') =>
-            return true,
-        (Backslash, '\\') | (Comma, ',') | (Equal, '=') | (LeftBracket, '[') |
-        (Minus, '-') | (Period, '.') | (RightBracket, ']') | (Semicolon, ';') |
-        (Slash, '/') =>
-            return true,
-
-        (Backquote, '~') | 
-        (Key1, '!') | (NumPad1, '!') | (Key2, '@') | (NumPad2, '@') |
-        (Key3, '#') | (NumPad3, '#') | (Key4, '$') | (NumPad4, '$') |
-        (Key5, '%') | (NumPad5, '%') | (Key6, '^') | (NumPad6, '^') |
-        (Key7, '&') | (NumPad7, '&') | (Key8, '*') | (NumPad8, '*') | 
-        (Key9, '(') | (NumPad9, '(') | (Key0, ')') | (NumPad0, ')') =>
-            return true,
-
-        (Minus, '_') | (Equal, '+') | (LeftBracket, '{') | (RightBracket, '}') | (Backslash, '|') | 
-        (Semicolon, ':') | (Apostrophe, '"') | (Comma, '<') | (Period, '>') | (Slash, '?') =>
-            return true,
-
-        (NumPadAsterisk, '*') | (NumPadDot, '.') | (NumPadEnter, '\n') | (NumPadEnter, '\r') |
-        (NumPadMinus, '-') | (NumPadPlus, '+') | (NumPadSlash, '/') =>
-            return true,
-
-        (NumPad0, '0') | (NumPad1, '1') | (NumPad2, '2') | (NumPad3, '3') | (NumPad4, '4') | 
-        (NumPad5, '5') | (NumPad6, '6') | (NumPad7, '7') | (NumPad8, '8') | (NumPad9, '9') 
-            if desperate =>
-                return true,
-        
-        (NumPadDot, '?') | (NumPadMinus, '+') | (NumPadSlash, '?') 
-            if desperate =>
-                return true,
-
-        _ => {}
-    }
-
-    false
 }
 
 fn minifb_to_keycode(key: MinifbKey) -> Option<Keycode> {
@@ -305,7 +140,8 @@ fn minifb_to_keycode(key: MinifbKey) -> Option<Keycode> {
         M::LeftBracket => LeftBracket, M::Minus => Minus, M::Period => Period,
         M::RightBracket => RightBracket, M::Semicolon => Semicolon,
 
-        M::Slash => Slash, M::Backspace => Backspace, M::Delete => Delete,
+        // we get backspaces specifically from text
+        M::Slash => Slash, M::Backspace => return None, M::Delete => Delete,
         M::End => End, M::Enter => Enter,
 
         M::Escape => Escape,
@@ -331,22 +167,6 @@ fn minifb_to_keycode(key: MinifbKey) -> Option<Keycode> {
 fn most_likely_keycode(c: char) -> Option<Keycode> {
     use Keycode::*;
     Some(match c.to_ascii_uppercase() {
-        '0' => Key0, '1' => Key1, '2' => Key2, '3' => Key3, '4' => Key4,
-        '5' => Key5, '6' => Key6, '7' => Key7, '8' => Key8, '9' => Key9,
-
-        'A' => A, 'B' => B, 'C' => C, 'D' => D, 'E' => E, 'F' => F,
-        'G' => G, 'H' => H, 'I' => I, 'J' => J, 'K' => K, 'L' => L,
-        'M' => M, 'N' => N, 'O' => O, 'P' => P, 'Q' => Q, 'R' => R,
-        'S' => S, 'T' => T, 'U' => U, 'V' => V, 'W' => W, 'X' => X,
-        'Y' => Y, 'Z' => Z,
-
-        '\'' => Apostrophe, '`' => Backquote,
-
-        '\\' => Backslash, ',' => Comma, '=' => Equal, '[' => LeftBracket,
-        '-' => Minus, '.' => Period, ']' => RightBracket, ';' => Semicolon,
-        '/' => Slash, '\n' => Enter, '\r' => Enter,
-
-        ' ' => Space, '\t' => Tab,
         '\u{08}' => Backspace,
         _ => return None,
     })
@@ -355,30 +175,14 @@ fn most_likely_keycode(c: char) -> Option<Keycode> {
 fn censor_unhelpful_features(mut key: KeyEvent) -> KeyEvent {
     // This just deals with a bunch of miscellaneous things bad input systems might do
     key = match key {
-        KeyEvent::Type('\r'|'\n'|'\t', kc) => 
-            KeyEvent::Press(kc),
+        KeyEvent::Type('\r'|'\n') => 
+            KeyEvent::Press(KeyCombo { code: Keycode::Enter, shift: false, control: false }),
+        KeyEvent::Type('\t') => 
+            KeyEvent::Press(KeyCombo { code: Keycode::Tab, shift: false, control: false }),
         _ => key
     };
 
     use Keycode::*;
-    // Try really hard to map shifty chars to punctuation codes
-    if let KeyEvent::Type(c, combo) = &mut key {
-        let old_key_code = combo.code;
-        combo.code = match c {
-            '~' => Tilde, '!' => Exclamation, '@' => At, '#' => Pound,
-            '$' => Dollar, '%' => Percent, '^' => Caret, '&' => Ampersand,
-            '*' => Asterisk, '(' => LeftParen, ')' => RightParen,
-            '_' => Underscore, '+' => Plus, '{' => LeftBrace,
-            '}' => RightBrace, '|' => Pipe, ':' => Colon,
-            '"' => DoubleQuote, '<' => LessThan, '>' => GreaterThan,
-            '?' => QuestionMark,
-            _ => combo.code,
-        };
-        if old_key_code != combo.code {
-            combo.shift = false;
-        }
-    };
-
     // Even if the char code wasn't found, try to find it by looking at shift
     key.alter_combo(|combo| {
         let old_key_code = combo.code;

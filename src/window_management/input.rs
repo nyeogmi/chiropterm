@@ -76,9 +76,8 @@ impl MouseButton {
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KeyEvent {
     Press(KeyCombo),
-    Retrigger(KeyCombo),
     Release(KeyCombo),
-    Type(char, KeyCombo)
+    Type(char),
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -135,27 +134,24 @@ impl KeyEvent {
     pub fn alter_combo(&mut self, alter: impl FnOnce(&mut KeyCombo)) {
         match self {
             KeyEvent::Press(k) => alter(k),
-            KeyEvent::Retrigger(k) => alter(k),
             KeyEvent::Release(k) => alter(k),
-            KeyEvent::Type(_, k) => alter(k),
+            KeyEvent::Type(_) => {},
         }
     }
 
-    pub fn get_combo(&self) -> KeyCombo {
+    pub fn get_combo(&self) -> Option<KeyCombo> {
         match self {
-            KeyEvent::Press(k) => *k,
-            KeyEvent::Retrigger(k) => *k,
-            KeyEvent::Release(k) => *k,
-            KeyEvent::Type(_, k) => *k,
+            KeyEvent::Press(k) => Some(*k),
+            KeyEvent::Release(k) => Some(*k),
+            KeyEvent::Type(_) => None,
         }
     }
     
     pub fn is_down(&self) -> bool {
         match self {
             KeyEvent::Press(_) => true,
-            KeyEvent::Retrigger(_) => true,
             KeyEvent::Release(_) => false,
-            KeyEvent::Type(_, _) => true,
+            KeyEvent::Type(_) => true,
         }
     }
 

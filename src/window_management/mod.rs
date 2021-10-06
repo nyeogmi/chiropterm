@@ -22,8 +22,8 @@ pub use self::math::AspectConfig;
 pub use input::*;
 pub use on_key::*;
 
-const TICKS_PER_SECOND: usize = 3;
-const APPARENT_TICK_MICROSECONDS: u128 =  10 * 33333;  // 30 FPS
+const TICKS_PER_SECOND: usize = 30;
+const APPARENT_TICK_MICROSECONDS: u128 =  33333;  // 30 FPS
 const HANDLE_INPUT_EVERY: usize = 4166; // 240 FPS
 
 pub struct IO {
@@ -157,7 +157,7 @@ impl IO {
                         self.must_refresh = true;
                         sig.replace(m(self));
                     }
-                    Signal::Continue => {}
+                    Signal::Continue => { }
                     Signal::Refresh => { self.must_refresh = true; }
                 }
             }
@@ -265,8 +265,7 @@ impl IO {
 
             // now keyboard etc
             let win = self.window.as_mut().unwrap();
-            self.keyboard.add_keys(win, is_new_tick);
-            self.keyboard.correlate();
+            self.keyboard.add_keys(win);
             let cells = &self.screen.target().cells;
             self.mouse.update(aspect, win, is_new_tick, |xy| 
                 cells.get(xy).map(|i| (i.get().interactor.interactor, i.get().scroll_interactor))

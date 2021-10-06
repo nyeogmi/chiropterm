@@ -128,7 +128,7 @@ impl<'a> MenuState<'a> {
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
             match input {
-                InputEvent::Keyboard(KeyEvent::Type(c, _)) => { cb(c) }
+                InputEvent::Keyboard(KeyEvent::Type(c)) => { cb(c) }
                 _ => unreachable!(),
             }
         })));
@@ -141,7 +141,7 @@ impl<'a> MenuState<'a> {
         krcg.push(
             (
                 KeyRecognizer(Box::new(move |key| {
-                    if let KeyEvent::Type(_, _) = key { true }
+                    if let KeyEvent::Type(_) = key { true }
                     else { false }
                 })),
                 interactor
