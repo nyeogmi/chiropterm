@@ -74,12 +74,18 @@ impl MouseButton {
 
 // TODO: Add an "is_accept()" method that returns true for enter and space
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct KeyEvent {
-    pub code: Keycode,  // TODO: Provide a KeyCode enum
+pub enum KeyEvent {
+    Press(KeyCombo),
+    Retrigger(KeyCombo),
+    Release(KeyCombo),
+    Type(char, KeyCombo)
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct KeyCombo {
+    pub code: Keycode,
     pub shift: bool,
     pub control: bool,
-    pub retriggered: bool,  // by being held at the end of a frame
-    pub char: Option<char>,
 }
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
@@ -124,4 +130,36 @@ pub enum Keycode {
 
     // don't expose NumPad keys separately: terminals don't know the difference
     // and doing so encourages developers to make UIs that won't work on most laptops
+}
+impl KeyEvent {
+    pub fn alter_combo(&mut self, alter: impl FnOnce(&mut KeyCombo)) {
+        match self {
+            KeyEvent::Press(k) => alter(k),
+            KeyEvent::Retrigger(k) => alter(k),
+            KeyEvent::Release(k) => alter(k),
+            KeyEvent::Type(_, k) => alter(k),
+        }
+    }
+
+    pub fn get_combo(&self) -> KeyCombo {
+        match self {
+            KeyEvent::Press(k) => *k,
+            KeyEvent::Retrigger(k) => *k,
+            KeyEvent::Release(k) => *k,
+            KeyEvent::Type(_, k) => *k,
+        }
+    }
+    
+    pub fn is_down(&self) -> bool {
+        match self {
+            KeyEvent::Press(_) => true,
+            KeyEvent::Retrigger(_) => true,
+            KeyEvent::Release(_) => false,
+            KeyEvent::Type(_, _) => true,
+        }
+    }
+
+    pub fn is_up(&self) -> bool {
+        return !self.is_down()
+    }
 }

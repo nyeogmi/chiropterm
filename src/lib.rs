@@ -23,8 +23,10 @@ pub use window_management::{
     Menu,
     MouseEvent, 
     MouseButton, 
+    OnKey,
     KeyEvent, 
     Keycode,
+    KeyRecognizer,
     IO,
     Signal,
 };

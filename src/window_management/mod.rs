@@ -3,9 +3,10 @@ mod keyboard;
 mod math;
 mod menu;
 mod mouse;
+mod on_key;
 mod redraw_tracking_screen;
 
-use std::time::{Instant};
+use std::{collections::VecDeque, time::{Instant}};
 
 use euclid::size2;
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
@@ -15,13 +16,14 @@ use crate::{drawing::Screen, rendering::{self, Interactor, Render, Swatch}, wind
 use self::{math::{calculate_aspect, default_window_size}, mouse::Mouse, redraw_tracking_screen::RedrawTrackingScreen};
 pub(crate) use self::math::Aspect;
 
-pub use menu::{Menu, Signal};
+pub use menu::{Menu, KeyRecognizer, Signal};
 
 pub use self::math::AspectConfig;
 pub use input::*;
+pub use on_key::*;
 
-const TICKS_PER_SECOND: usize = 15;
-const APPARENT_TICK_MICROSECONDS: u128 = 66666;  // 15 FPS
+const TICKS_PER_SECOND: usize = 3;
+const APPARENT_TICK_MICROSECONDS: u128 =  10 * 33333;  // 30 FPS
 const HANDLE_INPUT_EVERY: usize = 4166; // 240 FPS
 
 pub struct IO {
@@ -36,6 +38,11 @@ pub struct IO {
     window: Option<Window>,
     keyboard: Keyboard,
     mouse: Mouse,
+    old_aspect: Option<Aspect>,
+    must_refresh: bool,
+
+    // input events
+    input_events: VecDeque<InputEvent>,
 
     // renderer state
     buffer: Vec<u32>,
@@ -76,6 +83,9 @@ impl IO {
             iteration: 0, tick: 0, last_tick_at: None, window_title, aspect_config,
             
             window: None, keyboard: Keyboard::new(), mouse: Mouse::new(),
+            old_aspect: None, must_refresh: true,
+
+            input_events: VecDeque::new(),
             
             buffer: vec![], swatch, screen: RedrawTrackingScreen::new(swatch.default_bg, swatch.default_fg),
             default_on_exit,
@@ -137,25 +147,30 @@ impl IO {
     }
 
     pub fn menu(&mut self, mut on_redraw: impl FnMut(&Screen, Menu)) {
+        let menu = Menu::new();
         loop {
-            let mut sig = Some(self.low_level_menu(&mut on_redraw));
+            let mut sig = Some(self.low_level_menu(menu.share(), &mut on_redraw));
             while let Some(s) = sig.take() {
                 match s {
-                    Signal::Break => { return }
+                    Signal::Break => { self.must_refresh = true; return }
                     Signal::Modal(m) => {
+                        self.must_refresh = true;
                         sig.replace(m(self));
                     }
                     Signal::Continue => {}
+                    Signal::Refresh => { self.must_refresh = true; }
                 }
             }
         } 
     }
 
-    fn low_level_menu(&mut self, on_redraw: &mut impl FnMut(&Screen, Menu)) -> Signal {
-        let menu = Menu::new();
+    fn low_level_menu(&mut self, menu: Menu, on_redraw: &mut impl FnMut(&Screen, Menu)) -> Signal {
         let mut cmd = None;
         self.wait(EventLoop {
-            on_redraw: Box::new(|io| { on_redraw(io.screen.target(), menu.share()) }),
+            on_redraw: Box::new(|io| { 
+                menu.clear();
+                on_redraw(io.screen.target(), menu.share()) 
+            }),
             on_exit: Box::new(self.default_on_exit),
 
             on_input: Box::new(|_, i| { 
@@ -190,8 +205,6 @@ impl IO {
     }
 
     fn wait<'a>(&mut self, mut evt: EventLoop<'a>) {
-        let mut old_aspect = None;
-
         'main: for iter_here in self.iteration as u64.. {
             self.iteration = iter_here;
 
@@ -199,8 +212,8 @@ impl IO {
             if let None = self.window { self.reconstitute_window(); window_changed = true }
             let aspect = self.reconstitute_buffer();  
 
-            let aspect_changed = Some(aspect) != old_aspect;
-            old_aspect = Some(aspect);
+            let aspect_changed = Some(aspect) != self.old_aspect;
+            self.old_aspect = Some(aspect);
 
             // set by reconstitute()
             let win = self.window.as_mut().unwrap();
@@ -213,45 +226,16 @@ impl IO {
 
             // redraw (virtually)
             self.screen.resize(aspect.term_size.cast());
-            let needs_virtual_redraw = aspect_changed;
+            let needs_virtual_redraw = aspect_changed || self.must_refresh;  // note: this also gets triggered by the first iteration in that aspect is none on that iteration
 
             if needs_virtual_redraw {
                 self.screen.switch();
+                self.must_refresh = false;
                 (evt.on_redraw)(self);
             }
 
-            // check events, starting with ticks
-            let now = Instant::now();
-            let is_new_tick = if let Some(lfa) = self.last_tick_at {
-                now.duration_since(lfa).as_micros() > APPARENT_TICK_MICROSECONDS
-            } else { true };
-            if is_new_tick {
-                self.tick += 1;
-                handle_resume!('main, (evt.on_input)(self, InputEvent::Tick(self.tick)));
-                self.last_tick_at = Some(now);
-            }
-
-            // now keyboard etc
-            let win = self.window.as_mut().unwrap();
-            self.keyboard.add_pressed_keys(win, is_new_tick);
-            self.keyboard.correlate();
-            let cells = &self.screen.target().cells;
-            self.mouse.update(aspect, win, is_new_tick, |xy| 
-                cells.get(xy).map(|i| (i.get().interactor.interactor, i.get().scroll_interactor))
-                .unwrap_or((Interactor::none(), Interactor::none()))
-            );
-
-            while let Some(keypress) = self.keyboard.getch() {
-                handle_resume!('main, (evt.on_input)(self, InputEvent::Keyboard(keypress)));
-            }
-
-            while let Some(mouse_evt) = self.mouse.getch() {
-                handle_resume!('main, (evt.on_input)(self, InputEvent::Mouse(mouse_evt)));
-            }
-
-            let interactor_changed = self.mouse.interactor_changed();
-
-            let needs_physical_redraw = aspect_changed || window_changed || needs_virtual_redraw || interactor_changed;
+            // physically redraw if needed
+            let needs_physical_redraw = aspect_changed || window_changed || needs_virtual_redraw || self.mouse.interactor_changed();
             if needs_physical_redraw {
                 let touched = self.draw(aspect, self.mouse.interactor());
 
@@ -267,6 +251,46 @@ impl IO {
             } else {
                 let win = self.window.as_mut().unwrap();
                 win.update()
+            }
+
+            // check events, starting with ticks
+            let now = Instant::now();
+            let is_new_tick = if let Some(lfa) = self.last_tick_at {
+                now.duration_since(lfa).as_micros() > APPARENT_TICK_MICROSECONDS
+            } else { true };
+            if is_new_tick {
+                self.tick += 1;
+                self.last_tick_at = Some(now);
+            }
+
+            // now keyboard etc
+            let win = self.window.as_mut().unwrap();
+            self.keyboard.add_keys(win, is_new_tick);
+            self.keyboard.correlate();
+            let cells = &self.screen.target().cells;
+            self.mouse.update(aspect, win, is_new_tick, |xy| 
+                cells.get(xy).map(|i| (i.get().interactor.interactor, i.get().scroll_interactor))
+                .unwrap_or((Interactor::none(), Interactor::none()))
+            );
+
+            while let Some(keypress) = self.keyboard.getch() {
+                self.input_events.push_back(InputEvent::Keyboard(keypress));
+            }
+
+            while let Some(mouse_evt) = self.mouse.getch() {
+                self.input_events.push_back(InputEvent::Mouse(mouse_evt));
+            }
+
+            if is_new_tick {
+                self.input_events.push_back(InputEvent::Tick(self.tick));
+            }
+
+            while let Some(i_evt) = self.input_events.pop_front() {
+                if let InputEvent::Tick(_) = i_evt {}
+                else {
+                    println!("dispatching: {:?}", i_evt);
+                }
+                handle_resume!('main, (evt.on_input)(self, i_evt));
             }
         }
 

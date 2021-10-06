@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use minifb::{Key as MinifbKey, KeyRepeat, Window};
 
-use super::input::{KeyEvent, Keycode};
+use super::{KeyCombo, input::{KeyEvent, Keycode}};
 
 const FRAMES_UNTIL_GIVEUP: u8 = 1; // give up on correlating utf32 characters after n frames
 
@@ -19,7 +19,8 @@ impl Keyboard {
         window.set_input_callback(Box::new(KeyCorrelatorRef(Rc::clone(&self.correlator.0))))
     }
 
-    pub fn add_pressed_keys(&mut self, window: &mut Window, is_new_tick: bool) {
+    pub fn add_keys(&mut self, window: &mut Window, is_new_tick: bool) {
+        // pressed keys
         if let Some(pressed) = window.get_keys_pressed(KeyRepeat::No) {  
             let mut corr = self.correlator.0.borrow_mut();
             let shift = window.is_key_down(MinifbKey::LeftShift) || window.is_key_down(MinifbKey::RightShift);
@@ -28,6 +29,7 @@ impl Keyboard {
                 corr.minifb_keys.push_back(ModalMinifbKey { shift, control, key });
             }
 
+            // retriggered keys
             if is_new_tick {
                 if let Some(down) = window.get_keys() {
                     for &key in down.iter() {
@@ -35,6 +37,17 @@ impl Keyboard {
                         corr.retriggered_keys.push_back(ModalMinifbKey { shift, control, key });
                     }
                 }
+            }
+        }
+
+        // released keys
+        if let Some(released) = window.get_keys_released() {
+            let mut corr = self.correlator.0.borrow_mut();
+            let shift = window.is_key_down(MinifbKey::LeftShift) || window.is_key_down(MinifbKey::RightShift);
+            let control = window.is_key_down(MinifbKey::LeftCtrl) || window.is_key_down(MinifbKey::RightCtrl);
+
+            for &key in released.iter() {
+                corr.released_keys.push_back(ModalMinifbKey { shift, control, key })
             }
         }
     }
@@ -61,6 +74,7 @@ struct KeyCorrelator {
     utf32_keys: VecDeque<(u32, u8)>,  // keycode, age in frames
     minifb_keys: VecDeque<ModalMinifbKey>,
     retriggered_keys: VecDeque<ModalMinifbKey>,
+    released_keys: VecDeque<ModalMinifbKey>,
     events: VecDeque<KeyEvent>,
 }
 
@@ -77,6 +91,7 @@ impl KeyCorrelator {
             utf32_keys: VecDeque::new(),
             minifb_keys: VecDeque::new(),
             retriggered_keys: VecDeque::new(),
+            released_keys: VecDeque::new(),
             events: VecDeque::new(),
         }
     }
@@ -90,46 +105,61 @@ impl KeyCorrelator {
 
             // TODO: continue; if c is not representable in our display character set
 
-            let chiropt_key = {
-                let mut provider = self.minifb_keys.iter().position(|mmk| minifb_provides(*mmk, c, false));
-                if let None = provider {
-                    provider = self.minifb_keys.iter().position(|mmk| minifb_provides(*mmk, c, true));
-                }
+            let mut provider = self.minifb_keys.iter().position(|mmk| minifb_provides(*mmk, c, false));
+            if let None = provider {
+                provider = self.minifb_keys.iter().position(|mmk| minifb_provides(*mmk, c, true));
+            }
 
-                if let Some(i) = provider {
-                    let existing = self.minifb_keys.remove(i).unwrap();
-                    KeyEvent {
-                        code: minifb_to_keycode(existing.key).or(most_likely_keycode(c)).unwrap_or(Keycode::Unknown),
-                        shift: existing.shift,
-                        control: existing.control,
-                        retriggered: false,
-                        char: Some(c),
-                    }
-                } else if age > FRAMES_UNTIL_GIVEUP {
-                    if let Some(theoretical_code) = most_likely_keycode(c) {
-                        let (code, char) = if allow_hotkey_from_text(theoretical_code)  { 
-                            (theoretical_code, None)
-                        } else {
-                            // ignore the most likely keycode -- 
-                            // it is likely a hotkey we do not want to retrigger
-                            (Keycode::Unknown, Some(c))
-                        };
-                        KeyEvent {
-                            code,  
-                            shift: false,
-                            control: false,
-                            retriggered: false,
-                            char,
-                        }
-                    } else {
-                        continue
+            if let Some(i) = provider {
+                let existing = self.minifb_keys.remove(i).unwrap();
+                let code = minifb_to_keycode(existing.key).or(most_likely_keycode(c)).unwrap_or(Keycode::Unknown);
+                self.events.push_back(censor_unhelpful_features(
+                    KeyEvent::Type(
+                        c,
+                        KeyCombo {
+                            code,
+                            shift: existing.shift,
+                            control: existing.control,
+                        },
+                    )
+                ));
+                self.events.push_back(censor_unhelpful_features(
+                    KeyEvent::Press(
+                        KeyCombo {
+                            code,
+                            shift: existing.shift,
+                            control: existing.control,
+                        },
+                    )
+                ))
+            } else if age > FRAMES_UNTIL_GIVEUP {
+                // see if we can guess the code
+                if let Some(theoretical_code) = most_likely_keycode(c) {
+                    // but only use the guessed code if we are allowed to infer it from text (as text has different retriggering rules)
+                    if allow_hotkey_from_text(theoretical_code)  { 
+                        // nice!!
+                        self.events.push_back(censor_unhelpful_features(
+                            KeyEvent::Press(KeyCombo {
+                                shift: false,
+                                control: false,
+                                code: theoretical_code,
+                            })
+                        ))
+                    }  else {
+                        // still have to type it!!
+                        self.events.push_back(censor_unhelpful_features(
+                            KeyEvent::Type(
+                                c, KeyCombo { shift: false, control: false, code: Keycode::Unknown, }
+                            )
+                        ));
                     }
                 } else {
-                    self.utf32_keys.push_front((u, age + 1)); // don't garble the order
-                    break  // and skip out now
+                    continue
                 }
-            };
-            self.events.push_back(censor_unhelpful_features(chiropt_key))
+            } else {
+                self.utf32_keys.push_front((u, age + 1)); // don't garble the order
+                break  // and skip out now
+            }
         }
 
         while let Some(mmk) = self.minifb_keys.pop_front() {
@@ -138,13 +168,11 @@ impl KeyCorrelator {
                     // we get it from text, so don't get it from minifb
                     continue 
                 }
-                self.events.push_back(censor_unhelpful_features(KeyEvent {
+                self.events.push_back(censor_unhelpful_features(KeyEvent::Press(KeyCombo {
                     code: chiropt_keycode,
                     shift: mmk.shift,
                     control: mmk.control,
-                    retriggered: false,
-                    char: None,
-                }))
+                })))
             }
         }
 
@@ -153,13 +181,21 @@ impl KeyCorrelator {
             if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
                 if exempt_from_retriggering(chiropt_keycode) { continue; }
 
-                self.events.push_back(KeyEvent { 
+                self.events.push_back(KeyEvent::Retrigger(KeyCombo { 
                     code: chiropt_keycode, 
                     shift: mmk.shift, 
                     control: mmk.control, 
-                    retriggered: true,
-                    char: None 
-                })
+                }))
+            }
+        }
+
+        while let Some(mmk) = self.released_keys.pop_front() {
+            if let Some(chiropt_keycode) = minifb_to_keycode(mmk.key) {
+                self.events.push_back(KeyEvent::Release(KeyCombo {
+                    code: chiropt_keycode,
+                    shift: mmk.shift,
+                    control: mmk.control,
+                }))
             }
         }
     }
@@ -318,15 +354,17 @@ fn most_likely_keycode(c: char) -> Option<Keycode> {
 
 fn censor_unhelpful_features(mut key: KeyEvent) -> KeyEvent {
     // This just deals with a bunch of miscellaneous things bad input systems might do
-    if let Some('\r') | Some('\n') | Some('\t') = key.char {
-        key.char = None;
-    }
+    key = match key {
+        KeyEvent::Type('\r'|'\n'|'\t', kc) => 
+            KeyEvent::Press(kc),
+        _ => key
+    };
 
     use Keycode::*;
     // Try really hard to map shifty chars to punctuation codes
-    let old_key_code = key.code;
-    if let Some(c) = key.char {
-        key.code = match c {
+    if let KeyEvent::Type(c, combo) = &mut key {
+        let old_key_code = combo.code;
+        combo.code = match c {
             '~' => Tilde, '!' => Exclamation, '@' => At, '#' => Pound,
             '$' => Dollar, '%' => Percent, '^' => Caret, '&' => Ampersand,
             '*' => Asterisk, '(' => LeftParen, ')' => RightParen,
@@ -334,29 +372,35 @@ fn censor_unhelpful_features(mut key: KeyEvent) -> KeyEvent {
             '}' => RightBrace, '|' => Pipe, ':' => Colon,
             '"' => DoubleQuote, '<' => LessThan, '>' => GreaterThan,
             '?' => QuestionMark,
-            _ => key.code,
+            _ => combo.code,
+        };
+        if old_key_code != combo.code {
+            combo.shift = false;
         }
-    }
+    };
 
     // Even if the char code wasn't found, try to find it by looking at shift
-    if key.shift && !key.control {
-        key.code = match key.code {
-            Backquote => Tilde, Key1 => Exclamation, Key2 => At, 
-            Key3 => Pound, Key4 => Dollar, Key5 => Percent,
-            Key6 => Caret, Key7 => Ampersand, Key8 => Asterisk,
-            Key9 => LeftParen, Key0 => RightParen, Minus => Underscore,
-            Equal => Plus, LeftBracket => LeftBrace,
-            RightBracket => RightBrace, Backslash => Pipe,
-            Semicolon => Colon, Apostrophe => DoubleQuote,
-            Comma => LessThan, Period => GreaterThan,
-            Slash => QuestionMark,
-            _ => key.code,
+    key.alter_combo(|combo| {
+        let old_key_code = combo.code;
+        if combo.shift && !combo.control {
+            combo.code = match combo.code {
+                Backquote => Tilde, Key1 => Exclamation, Key2 => At, 
+                Key3 => Pound, Key4 => Dollar, Key5 => Percent,
+                Key6 => Caret, Key7 => Ampersand, Key8 => Asterisk,
+                Key9 => LeftParen, Key0 => RightParen, Minus => Underscore,
+                Equal => Plus, LeftBracket => LeftBrace,
+                RightBracket => RightBrace, Backslash => Pipe,
+                Semicolon => Colon, Apostrophe => DoubleQuote,
+                Comma => LessThan, Period => GreaterThan,
+                Slash => QuestionMark,
+                _ => combo.code,
+            }
         }
-    }
-    if key.code != old_key_code {
-        // shifty character!!! because it's inherently shifty, turn off the shift modifier
-        key.shift = false;
-    }
+        if combo.code != old_key_code {
+            // shifty character!!! because it's inherently shifty, turn off the shift modifier
+            combo.shift = false;
+        }
+    });
 
     key
 }

@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{IO, rendering::Interactor};
 
-use super::{KeyEvent, MouseEvent, input::{InputEvent, Keycode}};
+use super::{KeyEvent, MouseEvent, input::{InputEvent}};
 
 // TODO: Clear all interactors in one stroke? Or uh, a sub-menu that generates the None interactor no matter what
 // You know, so you can draw a screen with all its menus disabled!
@@ -18,15 +18,23 @@ impl<'a> Menu<'a> {
         }
     }
 
+    pub fn clear(&self) {
+        self.state.clear();
+    }
+
     pub fn share(&self) -> Menu<'a> {
         Menu { state: self.state.clone() }
     }
 
-    pub fn on_key(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> Signal) {
+    pub fn on_tick(&self, cb: impl 'a+FnMut(u64) -> Signal) {
+        self.state.on_tick(cb)
+    }
+
+    pub fn on_key(&self, k: KeyRecognizer<'a>, cb: impl 'a+FnMut(KeyEvent) -> Signal) {
         self.state.on_key(k, cb, false)
     }
 
-    pub fn on_key_hprio(&self, k: Keycode, cb: impl 'a+FnMut(KeyEvent) -> Signal) {
+    pub fn on_key_hprio(&self, k: KeyRecognizer<'a>, cb: impl 'a+FnMut(KeyEvent) -> Signal) {
         self.state.on_key(k, cb, true)
     }
 
@@ -50,8 +58,8 @@ impl<'a> Menu<'a> {
 pub struct MenuState<'a> {
     handlers: RefCell<Vec<Handler<'a>>>,
     on_tick: RefCell<Option<Handler<'a>>>,
-    hprio_key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
-    lprio_key_recognizers: RefCell<Vec<KeyRecognizer<'a>>>,
+    hprio_key_recognizers: RefCell<Vec<(KeyRecognizer<'a>, Interactor)>>,
+    lprio_key_recognizers: RefCell<Vec<(KeyRecognizer<'a>, Interactor)>>,
     // TODO: Key handlers again
 }
 
@@ -65,7 +73,26 @@ impl<'a> MenuState<'a> {
         }
     }
 
-    pub fn on_key(&self, k: Keycode, mut cb: impl 'a+FnMut(KeyEvent) -> Signal, high_prio: bool) {
+    pub fn clear(&self) {
+        self.handlers.borrow_mut().clear();
+        self.on_tick.borrow_mut().take();
+        self.hprio_key_recognizers.borrow_mut().clear();
+        self.lprio_key_recognizers.borrow_mut().clear();
+    }
+
+    pub fn on_tick(&self, mut cb: impl 'a+FnMut(u64) -> Signal) {
+        if self.on_tick.borrow().is_some() {
+            panic!("can't have two on_tick callbacks");
+        }
+        self.on_tick.replace(Some(Handler(Box::new(move |input| {
+            match input {
+                InputEvent::Tick(t) => { cb(t) }
+                _ => unreachable!(),
+            }
+        }))));
+    }
+    
+    pub fn on_key(&self, k: KeyRecognizer<'a>, mut cb: impl 'a+FnMut(KeyEvent) -> Signal, high_prio: bool) {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -81,10 +108,7 @@ impl<'a> MenuState<'a> {
         } else {
             self.lprio_key_recognizers.borrow_mut()
         };
-        krcg.push(KeyRecognizer(Box::new(move |key| {
-            if key.code == k { return interactor }
-            Interactor::none()
-        })));
+        krcg.push((k, interactor)); 
     }
 
     pub fn on_click(&self, mut cb: impl 'a+FnMut(MouseEvent) -> Signal) -> Interactor {
@@ -104,7 +128,7 @@ impl<'a> MenuState<'a> {
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
             match input {
-                InputEvent::Keyboard(k) => { cb(k.char.unwrap()) }
+                InputEvent::Keyboard(KeyEvent::Type(c, _)) => { cb(c) }
                 _ => unreachable!(),
             }
         })));
@@ -114,10 +138,15 @@ impl<'a> MenuState<'a> {
         } else {
             self.lprio_key_recognizers.borrow_mut()
         };
-        krcg.push(KeyRecognizer(Box::new(move |key| {
-            if let Some(_) = key.char { return interactor; }
-            Interactor::none()
-        })));
+        krcg.push(
+            (
+                KeyRecognizer(Box::new(move |key| {
+                    if let KeyEvent::Type(_, _) = key { true }
+                    else { false }
+                })),
+                interactor
+            )
+        );
     }
 
     pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal> {
@@ -130,11 +159,12 @@ impl<'a> MenuState<'a> {
                 None
             }
             InputEvent::Keyboard(k) => { 
-                for rec in self.hprio_key_recognizers.borrow().iter().chain(self.lprio_key_recognizers.borrow().iter()) {
-                    let interactor = (rec.0)(k);
-                    if let Some(ix) = interactor.index() {
-                        let mut hnd = self.handlers.borrow_mut();
-                        if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
+                for (rec, interactor) in self.hprio_key_recognizers.borrow().iter().chain(self.lprio_key_recognizers.borrow().iter()) {
+                    if rec.0(k) {
+                        if let Some(ix) = interactor.index() {
+                            let mut hnd = self.handlers.borrow_mut();
+                            if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
+                        }
                     }
                 }
                 None
@@ -171,15 +201,13 @@ struct Handler<'a> (
     Box<dyn 'a+FnMut(InputEvent) -> Signal>,
 );
 
-struct KeyRecognizer<'a> (
-    Box<dyn 'a+Fn(KeyEvent) -> Interactor>,
+pub struct KeyRecognizer<'a> (
+    pub Box<dyn 'a+Fn(KeyEvent) -> bool>,
 );
 
 pub enum Signal {
     Break,
     Modal(Box<dyn FnOnce(&mut IO) -> Signal>),
     Continue,
-}
-
-trait DoMenu {
+    Refresh,
 }

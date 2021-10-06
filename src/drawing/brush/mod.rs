@@ -173,11 +173,11 @@ impl<'a> Brush<'a> {
         b
     }
 
-    pub fn putch(&self, u: u16) -> Self {
+    pub fn putch(&self, u: impl Into<u16>) -> Self {
         let mut b = self.clone();
         let font = b.font;
         let cursor = b.cursor;
-        font.draw_char(cursor, FChar::new().sprite(u), &mut b);
+        font.draw_char(cursor, FChar::new().sprite(u.into()), &mut b);
         // TODO: Update cursor position?
         b
     }
