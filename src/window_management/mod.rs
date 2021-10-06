@@ -285,10 +285,6 @@ impl IO {
             }
 
             while let Some(i_evt) = self.input_events.pop_front() {
-                if let InputEvent::Tick(_) = i_evt {}
-                else {
-                    println!("dispatching: {:?}", i_evt);
-                }
                 handle_resume!('main, (evt.on_input)(self, i_evt));
             }
         }
