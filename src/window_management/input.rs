@@ -33,6 +33,12 @@ pub enum MouseEvent {
         now_point: CellPoint,
         now_interactor: Interactor
     },
+    Wiggle { 
+        last_point: CellPoint,
+        last_interactor: Interactor,
+        now_point: CellPoint,
+        now_interactor: Interactor
+    },
     Scroll(f32, CellPoint, Interactor),
     // wheel?
 }
@@ -53,6 +59,15 @@ impl MouseEvent {
                 MouseEvent::Drag {
                     mouse_button, 
                     start_point: start_point + vec, start_interactor,
+                    last_point: last_point + vec, last_interactor,
+                    now_point: now_point + vec, now_interactor,
+                }
+            }
+            MouseEvent::Wiggle {
+                last_point, last_interactor,
+                now_point, now_interactor,
+            } => {
+                MouseEvent::Wiggle {
                     last_point: last_point + vec, last_interactor,
                     now_point: now_point + vec, now_interactor,
                 }

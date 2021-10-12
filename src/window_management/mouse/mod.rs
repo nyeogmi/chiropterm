@@ -1,5 +1,6 @@
 mod drag;
 mod scroll_wheel;
+mod wiggle;
 
 use std::collections::VecDeque;
 
@@ -9,7 +10,7 @@ use minifb::{MouseButton as MinifbMouseButton, MouseMode, Window};
 
 use crate::{aliases::CellPoint, rendering::Interactor};
 
-use self::scroll_wheel::ScrollWheelMonitor;
+use self::{scroll_wheel::ScrollWheelMonitor, wiggle::WiggleMonitor};
 
 use super::{Aspect, input::MouseEvent, input::MouseButton};
 
@@ -19,6 +20,7 @@ use drag::DragMonitor;
 pub(crate) struct Mouse {
     drag: EnumMap<MouseButton, DragMonitor>,
     scroll_wheel: ScrollWheelMonitor,
+    wiggle: WiggleMonitor,
 
     old: Option<State>,
     new: Option<State>,
@@ -42,6 +44,7 @@ impl Mouse {
                 _ => DragMonitor::new(),
             },
             scroll_wheel: ScrollWheelMonitor::new(),
+            wiggle: WiggleMonitor::new(),
             old: None, 
             new: None,
             events: VecDeque::new(),
@@ -92,6 +95,8 @@ impl Mouse {
                         self.drag[mb].post_events(&mut self.events, mb, &|p| any_interactor(p).0)
                     }
                 }
+                self.wiggle.at(new.cell_xy);
+                self.wiggle.post_events(&mut self.events, &|p| any_interactor(p).0);
             }
         }
     }

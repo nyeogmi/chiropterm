@@ -1,6 +1,8 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::{Cell, RefCell}, rc::Rc};
 
-use crate::{IO, rendering::Interactor};
+use euclid::point2;
+
+use crate::{CellPoint, IO, rendering::Interactor};
 
 use super::{KeyEvent, MouseEvent, input::{InputEvent}};
 
@@ -38,8 +40,8 @@ impl<'a> Menu<'a> {
         self.state.on_key(k, cb, true)
     }
 
-    pub fn on_click(&self, cb: impl 'a+FnMut(MouseEvent) -> Signal) -> Interactor {
-        self.state.on_click(cb)
+    pub fn on_mouse(&self, cb: impl 'a+FnMut(MouseEvent) -> Signal) -> Interactor {
+        self.state.on_mouse(cb)
     }
 
     pub fn on_text(&self, cb: impl 'a+FnMut(char) -> Signal) {
@@ -48,6 +50,10 @@ impl<'a> Menu<'a> {
 
     pub fn on_text_hprio(&self, cb: impl 'a+FnMut(char) -> Signal) {
         self.state.on_text(cb, true)
+    }
+    
+    pub fn mouse_xy(&self) -> CellPoint {
+        self.state.mouse_xy.get()
     }
 
     pub(crate) fn handle(&self, i: InputEvent) -> Option<Signal> {
@@ -60,6 +66,7 @@ pub struct MenuState<'a> {
     on_tick: RefCell<Option<Handler<'a>>>,
     hprio_key_recognizers: RefCell<Vec<(KeyRecognizer<'a>, Interactor)>>,
     lprio_key_recognizers: RefCell<Vec<(KeyRecognizer<'a>, Interactor)>>,
+    mouse_xy: Cell<CellPoint>,
     // TODO: Key handlers again
 }
 
@@ -70,6 +77,7 @@ impl<'a> MenuState<'a> {
             on_tick: RefCell::new(None),
             hprio_key_recognizers: RefCell::new(vec![]),
             lprio_key_recognizers: RefCell::new(vec![]),
+            mouse_xy: Cell::new(point2(-1, -1)),  // will be populated on first tick
         }
     }
 
@@ -111,7 +119,7 @@ impl<'a> MenuState<'a> {
         krcg.push((k, interactor)); 
     }
 
-    pub fn on_click(&self, mut cb: impl 'a+FnMut(MouseEvent) -> Signal) -> Interactor {
+    pub fn on_mouse(&self, mut cb: impl 'a+FnMut(MouseEvent) -> Signal) -> Interactor {
         let mut hndl = self.handlers.borrow_mut();
         let ix = hndl.len();
         hndl.push(Handler(Box::new(move |input| {
@@ -176,6 +184,15 @@ impl<'a> MenuState<'a> {
                 }
                 None
             },
+            InputEvent::Mouse(MouseEvent::Wiggle { now_point, now_interactor, .. }) => {
+                self.mouse_xy.replace(now_point);
+
+                if let Some(ix) = now_interactor.index() {
+                    let mut hnd = self.handlers.borrow_mut();
+                    if ix < hnd.len() { return Some((hnd[ix].0)(i)); };
+                }
+                None
+            }
             InputEvent::Mouse(MouseEvent::Drag { start_interactor, .. }) => {
                 if let Some(ix) = start_interactor.index() {
                     let mut hnd = self.handlers.borrow_mut();

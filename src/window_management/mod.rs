@@ -8,7 +8,7 @@ mod redraw_tracking_screen;
 
 use std::{collections::VecDeque, time::{Instant}};
 
-use euclid::size2;
+use euclid::{size2};
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
 use crate::{drawing::Screen, rendering::{self, Interactor, Render, Swatch}, window_management::keyboard::Keyboard};
