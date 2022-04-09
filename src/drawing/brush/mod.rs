@@ -1,4 +1,8 @@
-use crate::{aliases::*, formatting::{FChar, FSem, Justification, Preformatter}, rendering::{Font, Interactor, InteractorFmt, font}};
+use crate::{
+    aliases::*,
+    formatting::{FChar, FSem, Justification, Preformatter},
+    rendering::{Font, Interactor, InteractorFmt},
+};
 
 mod align;
 mod bevel;
@@ -6,13 +10,15 @@ mod boxart;
 mod fill;
 mod split;
 
-
 pub trait Brushable {
     fn draw(&self, at: CellPoint, f: FSem);
     // TODO: "set cursor" function, can be a no op for types without a cursor
 
-    fn brush_at(&self, rect: CellRect) -> Brush<'_> where Self: Sized {
-        Brush { 
+    fn brush_at(&self, rect: CellRect) -> Brush<'_>
+    where
+        Self: Sized,
+    {
+        Brush {
             underlying: self,
             clip: rect,
             cursor: CellPoint::zero(),
@@ -23,7 +29,7 @@ pub trait Brushable {
 
             // nyeo note: by default we actually overwrite interactors that might have been created by other draw ops
             // (why? because our text probably isn't related to their thing)
-            interactor: Some(InteractorFmt::none()),  
+            interactor: Some(InteractorFmt::none()),
             scroll_interactor: None,
         }
     }
@@ -32,10 +38,10 @@ pub trait Brushable {
 pub struct Brush<'a> {
     underlying: &'a dyn Brushable,
     // NYEO NOTE: `rect` is the bounds that the outside world sees
-    // `clip` is an inner set of boundaries enforced on the underlying object, 
+    // `clip` is an inner set of boundaries enforced on the underlying object,
     // in the underlying object's coord system
     clip: CellRect,
-    pub cursor: CellPoint, 
+    pub cursor: CellPoint,
     pub font: Font,
 
     fg: Option<u8>,
@@ -46,13 +52,13 @@ pub struct Brush<'a> {
 
 impl<'a> Clone for Brush<'a> {
     fn clone(&self) -> Self {
-        Self { 
-            underlying: self.underlying.clone(), 
-            clip: self.clip.clone(), 
-            cursor: self.cursor.clone(), 
+        Self {
+            underlying: self.underlying.clone(),
+            clip: self.clip.clone(),
+            cursor: self.cursor.clone(),
             font: self.font,
-            
-            fg: self.fg.clone(), 
+
+            fg: self.fg.clone(),
             bg: self.bg.clone(),
             interactor: self.interactor.clone(),
             scroll_interactor: self.scroll_interactor.clone(),
@@ -67,7 +73,9 @@ impl<'a> Brush<'a> {
         b
     }
 
-    pub fn size(&self) -> CellSize { self.clip.size }
+    pub fn rect(&self) -> CellRect {
+        rect(0, 0, self.clip.size.width, self.clip.size.height)
+    }
 
     pub fn on_newline(&self) -> Self {
         let mut b = self.clone();
@@ -132,7 +140,6 @@ impl<'a> Brush<'a> {
     }
 
     pub fn putfs(&self, s: &str) -> Self {
-        println!("starting putfs: {}", self.cursor.x);
         let mut b = self.clone();
 
         let font_width = self.font.char_size().width;
@@ -140,8 +147,8 @@ impl<'a> Brush<'a> {
         let pre = Preformatter {
             font: self.font,
             indent: self.cursor.x / font_width,
-            first_line_fractional: self.cursor.x % font_width + 1,
-            width: Some((b.size().width / font_width) as usize),
+            first_line_fractional: self.cursor.x % font_width,
+            width: Some((b.clip.size.width / font_width) as usize),
             justification: Justification::Left,
         };
         pre.draw(s, &mut b);
@@ -159,7 +166,10 @@ impl<'a> Brush<'a> {
 
     pub fn region(&self, r: CellRect) -> Self {
         let mut b = self.clone();
-        b.clip = b.clip.intersection(&r.translate(b.clip.origin.to_vector())).unwrap_or(rect(0, 0, 0, 0));
+        b.clip = b
+            .clip
+            .intersection(&r.translate(b.clip.origin.to_vector()))
+            .unwrap_or(rect(0, 0, 0, 0));
         b.cursor = point2(0, 0);
         b
     }
@@ -169,8 +179,8 @@ impl<'a> Brushable for Brush<'a> {
     fn draw(&self, mut at: CellPoint, mut f: FSem) {
         at += self.clip.origin.to_vector();
 
-        if !self.clip.contains(at) { 
-            return; 
+        if !self.clip.contains(at) {
+            return;
         }
 
         f.bg = f.bg.or(self.bg);

@@ -22,7 +22,7 @@ impl <'a> Brush<'a> {
         let mut sem = FSem::new();
         sem.bevels.top = Some(color);
 
-        for x in 0..self.size().width {
+        for x in 0..self.clip.size.width {
             self.draw(point2(x, 0), sem);
         }
     }
@@ -33,7 +33,7 @@ impl <'a> Brush<'a> {
         let mut sem = FSem::new();
         sem.bevels.left = Some(color);
 
-        for y in 0..self.size().height {
+        for y in 0..self.clip.size.height {
             self.draw(point2(0, y), sem);
         }
     }
@@ -44,8 +44,8 @@ impl <'a> Brush<'a> {
         let mut sem = FSem::new();
         sem.bevels.right = Some(color);
 
-        for y in 0..self.size().height {
-            self.draw(point2(self.size().width - 1, y), sem);
+        for y in 0..self.clip.size.height {
+            self.draw(point2(self.clip.size.width - 1, y), sem);
         }
     }
 
@@ -55,8 +55,8 @@ impl <'a> Brush<'a> {
         let mut sem = FSem::new();
         sem.bevels.bottom = Some(color);
 
-        for x in 0..self.size().width {
-            self.draw(point2(x, self.size().height - 1), sem);
+        for x in 0..self.clip.size.width {
+            self.draw(point2(x, self.clip.size.height - 1), sem);
         }
     }
 }

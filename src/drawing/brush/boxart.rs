@@ -5,7 +5,7 @@ use crate::{BoxArt, Brush};
 impl <'a> Brush<'a> {
     pub fn draw_box(&self, double_border: bool) {
         let mut boxart = BoxArt::new();
-        let r_sz = self.size();
+        let r_sz = self.clip.size;
         let c_sz = self.font.char_size();
         let rect = Rect::new(
             point2(0, 0),
