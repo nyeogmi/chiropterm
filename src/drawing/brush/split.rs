@@ -4,19 +4,19 @@ use crate::aliases::*;
 
 impl <'a> Brush<'a> {
     pub fn split_vertically(&self, y: isize) -> (Brush<'a>, Brush<'a>) {
-        let y = self.rect.max_y().min(self.rect.min_y().max(y));
+        let y = self.clip.width().min(y).max(0);
 
-        let rect_1 = rect(self.rect.min_x(), self.rect.min_y(), self.rect.width(), y - self.rect.min_y());
-        let rect_2 = rect(self.rect.min_x(), y, self.rect.width(), self.rect.max_y() - y);
+        let rect_1 = rect(0, 0, self.clip.width(), y);
+        let rect_2 = rect(0, y, self.clip.width(), self.clip.height() - y);
 
         return (self.region(rect_1), self.region(rect_2))
     }
 
     pub fn split_horizontally(&self, x: isize) -> (Brush<'a>, Brush<'a>) {
-        let x = self.rect.max_x().min(self.rect.min_x().max(x));
+        let x = self.clip.width().min(x).max(0);
 
-        let rect_1 = rect(self.rect.min_x(), self.rect.min_y(), x - self.rect.min_x(), self.rect.max_y());
-        let rect_2 = rect(x, self.rect.min_y(), self.rect.max_x() - x, self.rect.max_y());
+        let rect_1 = rect(0, 0, x, self.clip.height());
+        let rect_2 = rect(x, 0, self.clip.width() - x, self.clip.height());
 
         return (self.region(rect_1), self.region(rect_2))
     }

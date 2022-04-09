@@ -17,46 +17,46 @@ impl <'a> Brush<'a> {
     }
 
     pub fn bevel_top(&self, color: u8) {
-        if self.rect.height() == 0 { return; }
+        if self.clip.height() == 0 { return; }
 
         let mut sem = FSem::new();
         sem.bevels.top = Some(color);
 
-        for x in self.rect.min_x()..self.rect.max_x() {
-            self.draw(point2(x, self.rect.min_y()), sem);
+        for x in 0..self.size().width {
+            self.draw(point2(x, 0), sem);
         }
     }
 
     pub fn bevel_left(&self, color: u8) {
-        if self.rect.width() == 0 { return; }
+        if self.clip.width() == 0 { return; }
 
         let mut sem = FSem::new();
         sem.bevels.left = Some(color);
 
-        for y in self.rect.min_y()..self.rect.max_y() {
-            self.draw(point2(self.rect.min_x(), y), sem);
+        for y in 0..self.size().height {
+            self.draw(point2(0, y), sem);
         }
     }
 
     pub fn bevel_right(&self, color: u8) {
-        if self.rect.width() == 0 { return; }
+        if self.clip.width() == 0 { return; }
 
         let mut sem = FSem::new();
         sem.bevels.right = Some(color);
 
-        for y in self.rect.min_y()..self.rect.max_y() {
-            self.draw(point2(self.rect.max_x() - 1, y), sem);
+        for y in 0..self.size().height {
+            self.draw(point2(self.size().width - 1, y), sem);
         }
     }
 
     pub fn bevel_bottom(&self, color: u8) {
-        if self.rect.height() == 0 { return; }
+        if self.clip.height() == 0 { return; }
 
         let mut sem = FSem::new();
         sem.bevels.bottom = Some(color);
 
-        for x in self.rect.min_x()..self.rect.max_x() {
-            self.draw(point2(x, self.rect.max_y() - 1), sem);
+        for x in 0..self.size().width {
+            self.draw(point2(x, self.size().height - 1), sem);
         }
     }
 }

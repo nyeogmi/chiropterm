@@ -1,17 +1,17 @@
-use euclid::{Rect, size2};
+use euclid::{Rect, size2, point2};
 
 use crate::{BoxArt, Brush};
 
 impl <'a> Brush<'a> {
     pub fn draw_box(&self, double_border: bool) {
         let mut boxart = BoxArt::new();
-        let rect = self.rect();
-        let sz = self.font.char_size();
+        let r_sz = self.size();
+        let c_sz = self.font.char_size();
         let rect = Rect::new(
-            rect.min(), 
+            point2(0, 0),
             size2(
-                rect.size.width / sz.width, 
-                rect.size.height / sz.height
+                r_sz.width / c_sz.width, 
+                r_sz.height / c_sz.height
             )
         );
         boxart.draw_box(rect, double_border);

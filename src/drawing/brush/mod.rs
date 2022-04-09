@@ -1,4 +1,4 @@
-use crate::{aliases::*, formatting::{FChar, FSem, Justification, Preformatter}, rendering::{Font, Interactor, InteractorFmt}};
+use crate::{aliases::*, formatting::{FChar, FSem, Justification, Preformatter}, rendering::{Font, Interactor, InteractorFmt, font}};
 
 mod align;
 mod bevel;
@@ -14,9 +14,7 @@ pub trait Brushable {
     fn brush_at(&self, rect: CellRect) -> Brush<'_> where Self: Sized {
         Brush { 
             underlying: self,
-            rect,
             clip: rect,
-            cursor_offset: CellVector::zero(),
             cursor: CellPoint::zero(),
             font: Font::Normal,
 
@@ -36,9 +34,7 @@ pub struct Brush<'a> {
     // NYEO NOTE: `rect` is the bounds that the outside world sees
     // `clip` is an inner set of boundaries enforced on the underlying object, 
     // in the underlying object's coord system
-    rect: CellRect,
     clip: CellRect,
-    cursor_offset: CellVector,
     pub cursor: CellPoint, 
     pub font: Font,
 
@@ -52,9 +48,7 @@ impl<'a> Clone for Brush<'a> {
     fn clone(&self) -> Self {
         Self { 
             underlying: self.underlying.clone(), 
-            rect: self.rect.clone(), 
             clip: self.clip.clone(), 
-            cursor_offset: self.cursor_offset.clone(), 
             cursor: self.cursor.clone(), 
             font: self.font,
             
@@ -73,18 +67,7 @@ impl<'a> Brush<'a> {
         b
     }
 
-    pub fn rect(&self) -> CellRect { self.rect }
-    pub fn clip(&self) -> CellRect { self.clip } 
-    pub fn cursor_offset(&self) -> CellVector { self.cursor_offset }  
-    pub fn shifted_clip(&self) -> CellRect {
-        self.clip().translate(-self.cursor_offset)
-    }
-
-    pub fn shift(&self, amt: CellVector) -> Self {
-        let mut b = self.clone();
-        b.cursor += amt;
-        b
-    }
+    pub fn size(&self) -> CellSize { self.clip.size }
 
     pub fn on_newline(&self) -> Self {
         let mut b = self.clone();
@@ -149,24 +132,16 @@ impl<'a> Brush<'a> {
     }
 
     pub fn putfs(&self, s: &str) -> Self {
-        // TODO: Justification? Probably should be a field
+        println!("starting putfs: {}", self.cursor.x);
         let mut b = self.clone();
-
-        let first_width_chars: Option<usize>;
-        let next_width_chars: Option<usize>;
 
         let font_width = self.font.char_size().width;
 
-        let first_width_cells = (b.rect.max_x() - self.cursor.x).max(0);
-        let next_width_cells = b.rect.size.width;
-
-        first_width_chars = Some((first_width_cells / font_width) as usize);
-        next_width_chars = Some((next_width_cells / font_width) as usize);
-
         let pre = Preformatter {
             font: self.font,
-            first_width_chars: first_width_chars,
-            main_width_chars: next_width_chars,
+            indent: self.cursor.x / font_width,
+            first_line_fractional: self.cursor.x % font_width + 1,
+            width: Some((b.size().width / font_width) as usize),
             justification: Justification::Left,
         };
         pre.draw(s, &mut b);
@@ -182,35 +157,17 @@ impl<'a> Brush<'a> {
         b
     }
 
-    pub fn clipped(&self, r: CellRect) -> Self {
-        let mut b = self.clone();
-        b.clip = b.clip.intersection(&r.translate(b.cursor_offset)).unwrap_or(rect(0, 0, 0, 0));
-        b
-    }
-
-    /// like clipped, but zeroed and affects `rect`
-    // (and therefore visible to the outside world)
     pub fn region(&self, r: CellRect) -> Self {
         let mut b = self.clone();
-        b.clip = b.clip.intersection(&r.translate(b.cursor_offset)).unwrap_or(rect(0, 0, 0, 0));
-        b.cursor_offset += r.origin.to_vector();
-        b.rect = CellRect::new(CellPoint::zero(), r.size);
+        b.clip = b.clip.intersection(&r.translate(b.clip.origin.to_vector())).unwrap_or(rect(0, 0, 0, 0));
         b.cursor = point2(0, 0);
         b
     }
-
-    pub fn offset_rect(&self, offset: CellVector) -> Self {
-        let mut b = self.clone();
-        b.rect = b.rect.translate(offset);
-        b.cursor_offset += offset;
-        b
-    }
-
 }
 
 impl<'a> Brushable for Brush<'a> {
     fn draw(&self, mut at: CellPoint, mut f: FSem) {
-        at += self.cursor_offset;
+        at += self.clip.origin.to_vector();
 
         if !self.clip.contains(at) { 
             return; 

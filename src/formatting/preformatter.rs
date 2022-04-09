@@ -1,21 +1,45 @@
 use euclid::point2;
 
-use crate::{aliases::{CellPoint}, cp437, rendering::Font};
-use crate::drawing::Brush;
+use crate::{aliases::CellPoint, cp437, rendering::Font, drawing::Brush};
 
 use super::{FChar, FString, fstring::FBevels};
 
 pub struct Preformatter {
     pub font: Font,
-    pub first_width_chars: Option<usize>,
-    pub main_width_chars: Option<usize>,
+    pub indent: isize,
+    pub first_line_fractional: isize,  // fractional offset for first line, used for big fonts
+    pub width: Option<usize>,
     pub justification: Justification,
 }
 
 impl Preformatter {
-    fn width(&self, y: usize) -> Option<usize> {
-        if y == 0 { self.first_width_chars }
-        else { self.main_width_chars }
+    fn desired_width(&self, y: usize) -> Option<usize> {
+        let indent = self.indent;
+        self.width.map(|mut w| {
+            if y == 0 && self.first_line_fractional > 0 { w -= 1 }
+            if indent < 0 {
+                if y == 0 { w } else { w - ((-indent) as usize) }
+            } else {
+                if y == 0 { w - (indent as usize) } else { w }
+            }
+        })
+    }
+    fn calculate_xoffset(&self, line_width: usize, y: usize) -> usize {
+        let indent = self.indent;
+        let dx = if indent < 0 {
+            if y == 0 { 0 } else { (-indent) as usize }
+        } else {
+            if y == 0 { indent as usize } else { 0 }
+        };
+        self.width.map(|mut w| {
+            if y == 0 && self.first_line_fractional > 0 { w -= 1 }
+            w = w - dx;
+            dx + match self.justification {
+                Justification::Left => { 0 },
+                Justification::Right => w - line_width,
+                Justification::Center => line_width / 2,
+            }
+        }).unwrap_or(0)
     }
 
     pub fn draw(&self, s: &str, brush: &mut Brush) {
@@ -34,7 +58,7 @@ impl Preformatter {
     ) {
         let char_size = self.font.char_size();
 
-        let mut cursor_dx = brush.cursor.x as usize;
+        let mut cursor_dx = 0; // presumably handled with indent
         let cursor_dy = brush.cursor.y as usize;
 
         let mut x: usize = 0;
@@ -42,17 +66,11 @@ impl Preformatter {
 
         let mut forced_break: bool = false;
         while y < lines.len() {
-            if y > 0 { 
+            if y == 0 { 
                 cursor_dx = 0; // no reason for future lines to be indented to match the cursor
             }  
             let line = &lines[y];
-            x = if let Some(w) = self.width(y) {
-                    match self.justification {
-                        Justification::Left => 0,
-                        Justification::Right => w - line.width,
-                        _ => (w - line.width) / 2
-                    }
-                } else { 0 };
+            x = self.calculate_xoffset(line.width, y);
 
             for w in line.lhs..line.rhs {
                 let word = words[w];
@@ -67,8 +85,12 @@ impl Preformatter {
                 for c in word.lhs..rhs {
                     // draw on stamp
                     // TODO: Depends on the font
-                    let cell_x = x as isize * char_size.width + cursor_dx as isize;
+                    let mut cell_x = x as isize * char_size.width + cursor_dx as isize;
                     let cell_y = y as isize * char_size.height + cursor_dy as isize;
+
+                    if y == 0 {
+                        cell_x += self.first_line_fractional
+                    }
 
                     self.font.draw_char(point2(cell_x, cell_y), characters.0[c], brush);
                     x += 1;
@@ -101,7 +123,7 @@ impl Preformatter {
                 let word_length = words[i].whitespace_lhs - words[i].lhs;
                 let additional_length = words[i].word_rhs - words[i].whitespace_lhs;
 
-                if let Some(w) = self.width(y) {
+                if let Some(w) = self.desired_width(y) {
                     if line.width + additional + word_length > w {
                         break;
                     }
@@ -193,7 +215,7 @@ impl Preformatter {
         // corresponds to BreakWords1
         let mut f_words_2 = vec![];
         for mut word in f_words_1.into_iter() {
-            if let Some(w) = self.main_width_chars {
+            if let Some(w) = self.width {
                 while word.whitespace_lhs - word.lhs > w {
                     f_words_2.push(FWord {
                         lhs: word.lhs,
@@ -276,8 +298,10 @@ struct FLine {
     forced_break: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Justification {
-    Left, Center, Right,
+    Left, 
+    Center, 
+    Right,
     // TODO: Justify?
 }
